@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { Field, TextInput, PasswordInput, LocationPicker } from '../components/Primitives';
 import api from '../api';
