@@ -12,12 +12,14 @@
 
   <p align="center">
     <a href="https://medispot.pages.dev" target="_blank">
-      <img src="https://img.shields.io/badge/Live%20Demo-medispot.pages.dev-1e40af?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Live Demo" />
+      <img src="https://img.shields.io/badge/Live%20Frontend-medispot.pages.dev-1e40af?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Live Demo" />
     </a>
-    <a href="https://mini-hackathon-sliit.onrender.com" target="_blank">
-      <img src="https://img.shields.io/badge/API%20Status-Online-10b981?style=for-the-badge&logo=render&logoColor=white" alt="API Status" />
+    <a href="https://mini-hackathon-sliit.onrender.com/api" target="_blank">
+      <img src="https://img.shields.io/badge/Production%20API-Render-10b981?style=for-the-badge&logo=render&logoColor=white" alt="API Status" />
     </a>
-    <img src="https://img.shields.io/badge/AI%20Engine-Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google Gemini" />
+    <a href="https://github.com/asma-mf/mini_hackathon" target="_blank">
+      <img src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Repo" />
+    </a>
   </p>
 
 </div>
@@ -30,113 +32,179 @@
 
 ---
 
-## ❗ The Selected Problem
+## ❓ The Problem
 
-During medical emergencies and routine healthcare treatments, patients, family members, and caregivers frequently face critical hurdles when attempting to obtain prescribed medications:
-
-1. **Severe Information Asymmetry & Stockouts**: Pharmacies experience fluctuating inventory levels due to regional supply shortages. Patients have zero visibility into which nearby pharmacies actually carry the required medicine in sufficient quantity.
-2. **Exhausting Physical & Telephone Searches**: Individuals are forced to commute from pharmacy to pharmacy or spend hours making dozens of phone calls, losing crucial time during acute health crises.
-3. **Complex Medical Terminology & Rigid Search Engines**: Traditional lookup engines require 100% exact keyword matches. Patients searching with phonetic spellings, brand names instead of generic names (e.g., *Panadol* vs. *Paracetamol*), or slight typographical errors often receive zero results despite stock being available nearby.
-4. **Lack of Price & Quantity Transparency**: Consumers cannot compare medicine prices or verify whether a pharmacy has enough units to fulfill their complete prescription dosage prior to traveling.
+Finding a specific medicine can be difficult when users do not know which nearby pharmacies currently have it in stock. People may need to contact or visit multiple pharmacies to check availability, which can waste time, especially when the medicine is needed urgently. Pharmacies also do not have a simple shared platform where they can publish their current medicine availability and allow customers to search for medicines nearby.
 
 ---
 
-## 💡 The Proposed Solution
+## 💡 Proposed Solution
 
-**MediSpot** is a centralized, AI-driven healthcare platform designed to bridge the communication and information gap between patients and local retail pharmacies in real-time.
+We developed a medicine search web application that connects users with pharmacies and helps them find medicines based on real-time availability.
 
-- **Semantic AI Search**: Powered by Google Gemini Flash, MediSpot intelligently understands messy natural language, brand-to-generic mappings, dosage notations, and common spelling errors to match patient inquiries against actual live pharmacy inventories.
-- **Dynamic Quantity & Low-Stock Intelligence**: Users specify the quantity of tablets or bottles they require. If a pharmacy has stock but fewer units than requested, MediSpot marks it as **"Low Stock"** with the exact remaining quantity shown.
-- **Price Transparency & Total Cost Calculation**: Every medicine listing contains verified unit pricing (in LKR / Rs.), allowing patients to view both individual unit rates and total projected costs for their requested prescription size.
-- **Proximity & Availability Ranking**: Integrates geolocation (Haversine distance calculation and interactive Leaflet map pins) to surface and prioritize pharmacies that are both closest and currently in stock.
-- **Direct Contact Integrations**: Patients can immediately call or initiate a pre-filled WhatsApp chat with the dispensing pharmacist to reserve their medicine before traveling.
-- **Decentralized Pharmacy Portal**: Pharmacists can manage their inventory in seconds with real-time stock toggles, quantity counters, inline price adjustments, and sorting capabilities.
+- **Intelligent Medicine Search**: Users can search for a medicine by entering its name, including possible spelling mistakes, abbreviations, or partial names. An AI-powered search process identifies possible matches from the medicines registered in the system.
+- **Stock & Proximity Transparency**: The application then displays pharmacies that have matching medicines, their stock status, pharmacy details, and distance from the user's location when available.
+- **Pharmacist Inventory Control**: Pharmacists can register their pharmacies, add medicines, update their stock status, and remove medicines that are no longer available.
+- **Direct Communication**: Users can also directly contact a pharmacy using the provided Call or WhatsApp options.
 
 ---
 
-## ✨ Main Features
+## 🔄 Workflow: How the System Works
 
-### 1. 🔍 AI-Powered Semantic Medicine Search
-- Natural language query interpretation powered by Google Gemini.
-- Accurately resolves brand names, generic formulations, dosages, and common typos (e.g., *"amox 250"*, *"ventolin inhaler"*, *"paracetamol 500"*).
-- Features an automatic local fallback mechanism to ensure 100% search uptime even during API quota constraints.
+```
+User Workflow:
+User ──► Search Medicine ──► AI Matching ──► Find Pharmacies ──► Check Stock ──► View Distance ──► Call / WhatsApp
 
-### 2. 📦 Quantity & Smart Stock Status Detection
-- Users can adjust their required medicine quantity via an intuitive counter.
-- **Three-Tier Stock Status**:
-  - 🟢 **In Stock**: Available quantity meets or exceeds the user's requested dosage.
-  - 🟡 **Low Stock**: Available, but fewer units remain than the requested amount.
-  - 🔴 **Out of Stock**: Depleted inventory.
-- Real-time stock prioritization ensures available medicines are always shown first.
-
-### 3. 💰 Transparent Pricing & Total Estimation
-- Pharmacists set and update live unit prices (`Rs.`).
-- Patients see unit prices and automatic total cost calculations based on their requested quantity.
-- Filter by maximum price ceilings (`< Rs. 250`, `< Rs. 500`, `< Rs. 1000`, or `Any`).
-- Sort results by **Price: Low to High** or **Price: High to Low**.
-
-### 4. 📍 Geolocation & Distance Filtering
-- Automatic browser GPS coordinate detection with privacy permission handling.
-- Distance calculations computed using the Haversine formula.
-- Quick proximity radius filters (`1 km`, `5 km`, `10 km`, `25 km`, `All`).
-- Interactive Leaflet & OpenStreetMap drag-and-drop location picker for pharmacies and users.
-
-### 5. 📞 Instant One-Click Communication
-- Direct **Click-to-Call** phone integration.
-- Direct **WhatsApp Messaging** with pre-formatted inquiry text to reserve medicines immediately.
-
-### 6. 🏬 Pharmacist Inventory Management Dashboard
-- Fast medicine onboarding with initial quantity, price, and name.
-- 1-click In Stock / Out of Stock toggle switches.
-- Inline quantity stepper controls (`+` / `-`).
-- Inline editable price fields with instant background synchronization.
-- Pharmacist inventory sorting (by Name, Price Low-High, Price High-Low, and Stock Count).
-
-### 7. 🔐 Role-Based Authentication
-- Secure JWT-based authentication for **Consumers** and **Pharmacists**.
-- Pharmacist registration captures pharmacy name, license ID, phone number, WhatsApp contact, and precise physical map coordinates.
+Pharmacist Workflow:
+Pharmacist ──► Register ──► Add Medicines ──► Update Stock & Price ──► Users Discover Pharmacy
+```
 
 ---
 
-## 🛠️ Technologies Used
+## ✨ Key Features
 
-### Frontend
-- **React 19**: Modern component-driven single page application.
-- **React Router DOM (v7)**: Client-side routing with role-based route guards.
-- **Vite**: High-performance frontend build pipeline.
-- **Vanilla CSS Design System**: Custom tokens, responsive layouts, glassmorphism, and micro-animations without bloated UI libraries.
-- **Leaflet & CartoDB Positron**: Lightweight, privacy-friendly interactive mapping.
-- **Axios**: HTTP client with request interceptors for token injection and error management.
-
-### Backend
-- **Node.js & Express.js**: High-throughput RESTful API architecture.
-- **MongoDB Atlas & Mongoose**: Cloud document database with geo-indexing and relational schema models.
-- **JWT (JSON Web Tokens) & bcryptjs**: Stateless session authorization and cryptographic password hashing.
-- **CORS & Security Middleware**: Origin verification and header hardening.
-
-### Deployment & Infrastructure
-- **Frontend Hosting**: Cloudflare Pages (`https://medispot.pages.dev`)
-- **Backend Hosting**: Render Cloud Web Services (`https://mini-hackathon-sliit.onrender.com`)
-- **Database**: MongoDB Atlas Cloud Cluster
-
----
-
-## 🤖 AI Tools Used
-
-- **Google Gemini 2.5 Flash / 1.5 Flash API**:
-  - Integrated directly into the backend search pipeline (`/api/search`).
-  - Analyzes raw search strings, extracts active ingredients, resolves alternate brand names and strengths, and matches them to pharmacy inventories.
-- **Google Antigravity Agentic AI Assistant**:
-  - Utilized for pair programming, full-stack architecture design, rapid debugging, code optimization, and deployment orchestration.
+- **User and Pharmacist role-based registration and login**
+- **Pharmacist medicine management** (Add, delete, update stock & price)
+- **In-stock / low-stock / out-of-stock status tracking** with quantity intelligence
+- **AI-assisted medicine search** powered by LLMs
+- **Support for typos, abbreviations, and partial medicine names**
+- **Nearby pharmacy distance calculation** (Haversine algorithm)
+- **Location selection using an interactive map** (Leaflet & OpenStreetMap)
+- **Search results grouped by medicine**
+- **Call pharmacy directly** with single-click telephone integration
+- **Contact pharmacy through WhatsApp** with pre-formatted inquiry text
+- **Distance-based result sorting** & proximity ordering
+- **Optional search radius filter** (1 km, 5 km, 10 km, 25 km, or All)
+- **Medicine price attribute** with budget filters (`< Rs. 250`, `< Rs. 500`, `< Rs. 1000`) and Price sorting
+- **Pharmacist dashboard** for managing inventory, quantities, prices, and viewing real-time stats
 
 ---
 
 ## 👥 Team Member Details and Contributions
 
-| Member Name | Role | Primary Contributions |
+### Team Members Overview
+
+| Student ID | Member Name | Role / Lead |
 |:---|:---|:---|
-| **Fathima Asma** | Full-Stack Developer | • Backend API design and Express route development<br/>• MongoDB database schemas (`User`, `Medicine`)<br/>• Google Gemini AI search integration & fallback logic<br/>• Stock status calculation and price sorting backend logic |
-| **Thisal Dilmith** | Frontend & DevOps Engineer | • Frontend React architecture and component library<br/>• UI/UX design system, animations, and responsive styling<br/>• Leaflet interactive map and geolocation integration<br/>• Cloudflare Pages and Render deployment pipelines |
+| **IT24103128** | **Dilmith K.H.T** | **Member 2 — AI Search Lead** *(Strong Coder)* |
+| **IT24101601** | **Asma M.F** | **Member 5 — App Shell, UI Kit & Integration Lead** |
+| **IT24103408** | **Diluminda H.A.T.D** | **Member 1 — Auth & Accounts Lead** |
+| **IT24103834** | **Lafry A.F.H** | **Member 3 — Pharmacy Inventory Lead** |
+| **IT24103637** | **Binuwara M.A.L** | **Member 4 — Location & Profile Lead** |
+
+---
+
+### Detailed Member Responsibilities & Files Owned
+
+#### 👤 Member 1 — Auth & Accounts Lead (IT24103408 · Diluminda H.A.T.D)
+> **Goal:** *"Anyone can sign up and sign in as a patient or pharmacist."*
+
+- **Files Owned:**
+  - **Backend:** `backend/src/models/User.js`, `backend/src/middleware/auth.js`, `backend/src/controllers/authController.js`, `backend/src/routes/auth.js`, `backend/src/routes/users.js` (auth portion)
+  - **Frontend:** `frontend/src/pages/AuthPage.jsx`, route guards in `frontend/src/App.jsx` (`Require` component)
+- **Build Scope:** Register, login, role toggle (patient / pharmacist), pharmacist phone & WhatsApp fields, JWT signing and verification, password hashing with bcrypt. Owns the user object contract that other modules depend upon.
+- **Demo Flow:** Create both account types, sign in/out, confirm `/dashboard` is strictly blocked for normal users.
+
+---
+
+#### 🔍 Member 2 — AI Search Lead (IT24103128 · Dilmith K.H.T — *Strong Coder*)
+> **Goal:** *"Type a typo or nickname for a drug and find the nearest pharmacy that has it."*
+
+- **Files Owned:**
+  - **Backend:** `backend/src/controllers/searchController.js`, `backend/src/utils/llm.js`, `backend/src/utils/haversine.js`
+  - **Frontend:** `frontend/src/pages/SearchPage.jsx`
+- **Build Scope:** AI fuzzy-match pipeline, LLM hallucination guard, fallback token matching, distance sorting, stock ranking (in / low / out), price sorting, and the complete search UI (debounced input, geolocation, stock / radius / price filters, Call / WhatsApp buttons).
+- **Demo Flow:** Search *"amox 250"* or *"parasitamol"* and show ranked pharmacies with distance, stock status, and price breakdown.
+
+---
+
+#### 💊 Member 3 — Pharmacy Inventory Lead (IT24103834 · Lafry A.F.H)
+> **Goal:** *"Pharmacists can publish and update their stock."*
+
+- **Files Owned:**
+  - **Backend:** `backend/src/models/Medicine.js`, `backend/src/controllers/medicineController.js`, `backend/src/routes/medicines.js`, pharmacyId logic in `backend/src/models/User.js`
+  - **Frontend:** `frontend/src/pages/DashboardPage.jsx`
+- **Build Scope:** Add/delete medicines, toggle in-stock / out-of-stock, quantity updates, price attributes, duplicate-name protection, pharmacist ownership checks, and inventory sort controls.
+- **Demo Flow:** Pharmacist logs in, adds Paracetamol with quantity 50 and price Rs. 150, toggles stock, and adjusts price.
+
+---
+
+#### 📍 Member 4 — Location & Profile Lead (IT24103637 · Binuwara M.A.L)
+> **Goal:** *"Users and pharmacies can set their position on a map, and search results respect it."*
+
+- **Files Owned:**
+  - **Backend:** `backend/src/controllers/userController.js`, `backend/src/routes/users.js` (update portion)
+  - **Frontend:** `frontend/src/pages/ProfilePage.jsx`, and `LocationPicker` inside `frontend/src/components/Primitives.jsx`
+- **Build Scope:** Leaflet map picker (click & drag pin), saving latitude/longitude coordinates, updating phone & WhatsApp contact information, default coordinates handling.
+- **Demo Flow:** Drag the pin on the map, save profile, run a medicine search, and observe distance calculation update accordingly.
+
+---
+
+#### 🧱 Member 5 — App Shell, UI Kit & Integration Lead (IT24101601 · Asma M.F)
+> **Goal:** *"The skeleton everything else plugs into, plus deployments and keeping branches merged."*
+
+- **Files Owned:**
+  - **Backend:** `backend/src/index.js`, `backend/src/config/db.js`, `.env.example`, CORS setup
+  - **Frontend:** `frontend/src/App.jsx`, `frontend/src/api.js`, `frontend/src/main.jsx`, `frontend/src/index.css`, `frontend/src/components/Icon.jsx`, shared primitives in `frontend/src/components/Primitives.jsx` (Toast, Field, TextInput, PasswordInput, SkeletonCard)
+- **Build Scope:** App routing, navigation bar, global toast system, Axios JWT interceptors, design tokens, shared component kit, MongoDB connection, deployment pipelines (Cloudflare Pages + Render), and master branch integration.
+- **Demo Flow:** Every member's feature operating seamlessly on the shared live deployment link.
+
+---
+
+### Workload Distribution Check
+
+| Member | Domain | Scope Complexity |
+|:---|:---|:---|
+| **Member 1 (Auth)** | User / Pharmacist Auth & Route Protection | Medium |
+| **Member 2 (Search)** | AI Search Engine, Fuzzy Matching, Geolocation UI | Heavy *(Assigned to Strong Coder)* |
+| **Member 3 (Inventory)** | Pharmacy Inventory CRUD, Stock & Pricing Management | Medium |
+| **Member 4 (Profile/Location)** | Interactive Maps, GPS Pinning, Profile Contact Updates | Focused & Essential |
+| **Member 5 (Shell & DevOps)** | Architecture Skeleton, Design System, Deployments & Merges | Heavy & Foundational |
+
+---
+
+### 🛡️ The 5 Collaboration Rules That Made This Work
+
+1. **API Contract First**: Before writing dependent code, endpoint schemas (request/response JSON) were established so team members could build against predictable contracts.
+2. **Feature Branches per Member**: Individual feature branches (`feat/1-auth`, `feat/2-search`, etc.) managed independently, with Member 5 conducting clean integrations.
+3. **UI Sketch as Single Design Reference**: Consistent colors, typography, spacing, and icons derived from [`ui-sketch/style.html`](file:///e:/AAA/mini_hackathon/ui-sketch/style.html) ensure visual unity.
+4. **Daily Demos**: Daily syncs merged features and immediately resolved bugs.
+5. **Shared Conventions**: Centralized component tokens (Sora font, `#1e40af` navy blue, `#10b981` green, card shadows) consumed uniformly across all views.
+
+---
+
+## 🛠️ Technologies Used
+
+- **Frontend**: React 19 + Vite 8
+- **Backend**: Node.js + Express 5 + MongoDB
+- **Database**: MongoDB Atlas with Mongoose ORM
+- **Authentication**: JWT (JSON Web Tokens) and bcrypt password hashing
+- **Maps**: Leaflet and OpenStreetMap (CartoDB Positron tiles)
+- **AI**: Claude Haiku / GPT-4o-mini / Google Gemini Flash API
+- **API Communication**: RESTful API architecture with Axios HTTP client
+- **Development & Tooling**: Concurrently, ESLint / Oxlint
+
+---
+
+## 🤖 AI Tools Used
+
+### AI Usage Declaration
+
+- **ChatGPT**: Used to help generate initial UI components, project structure, and debug application code.
+- **Claude**: Used for conducting domain research about the medicine availability problem and architecting the backend Express.js APIs.
+- **Chat-Z**: Used for generating UI layout references, component mockups, and assets.
+- **Antigravity**: Used for autonomous agentic coding, codebase optimization, refactoring, and project build verification.
+
+---
+
+### AI Prompt Log
+
+| AI Tool | Exact Prompt | Purpose | How Output Was Checked / Modified |
+|:---|:---|:---|:---|
+| **ChatGPT** | *"Help me design a simple MERN stack medicine search application with User and Pharmacist roles, JWT authentication, medicine management, and pharmacy search."* | Project architecture and feature planning | We reviewed the suggested architecture and adapted it to our hackathon requirements. |
+| **Claude** | *"Generate an Express.js API for medicine search using MongoDB and Mongoose, including pharmacist medicine CRUD operations and JWT authentication."* | Backend API development | We reviewed, tested, and modified the generated API code to match our database models and requirements. |
+| **Chat-Z** | *"Create a simple React and CSS interface for a medicine search application with a pharmacist dashboard and user search results."* | Frontend UI development | We tested the components and modified the layout, styling, and functionality to fit our application. |
+| **Antigravity** | *"Review this MERN medicine search application code, identify bugs, and suggest simple fixes without adding unnecessary libraries or complexity."* | Debugging and code improvement | We tested the suggested fixes locally and accepted or modified them based on the actual application behavior. |
 
 ---
 
@@ -146,7 +214,7 @@ During medical emergencies and routine healthcare treatments, patients, family m
 - **Node.js**: v18.0.0 or higher
 - **npm**: v9.0.0 or higher
 - **MongoDB**: Active MongoDB Atlas connection string or local MongoDB instance
-- **Google Gemini API Key**: Free tier or standard key from [Google AI Studio](https://aistudio.google.com/)
+- **Google Gemini API Key**: API key from Google AI Studio
 
 ---
 
@@ -158,16 +226,13 @@ cd mini_hackathon
 
 ---
 
-### 2. Backend Setup
-1. Navigate to the backend folder:
+### 2. Backend Configuration & Setup
+1. Navigate to the backend directory:
    ```bash
    cd backend
-   ```
-2. Install dependencies:
-   ```bash
    npm install
    ```
-3. Create a `.env` file inside the `backend` directory:
+2. Create a `.env` file in the `backend/` directory:
    ```env
    PORT=5000
    MONGO_URI=your_mongodb_connection_string
@@ -175,59 +240,41 @@ cd mini_hackathon
    GEMINI_API_KEY=your_gemini_api_key
    CLIENT_ORIGIN=http://localhost:5173
    ```
-4. Start the backend development server:
+3. Start the backend server:
    ```bash
    npm start
    ```
-   The backend API will be running at `http://localhost:5000`.
+   Backend runs at: `http://localhost:5000`
 
 ---
 
-### 3. Frontend Setup
-1. Open a new terminal and navigate to the frontend folder:
+### 3. Frontend Configuration & Setup
+1. Open a second terminal and navigate to the frontend directory:
    ```bash
    cd frontend
-   ```
-2. Install dependencies:
-   ```bash
    npm install
    ```
-3. Create a `.env` file inside the `frontend` directory:
+2. Create a `.env` file in the `frontend/` directory:
    ```env
    VITE_API_URL=http://localhost:5000/api
    ```
-4. Start the frontend Vite development server:
+3. Start the Vite development server:
    ```bash
    npm run dev
    ```
-   The application will be accessible at `http://localhost:5173`.
+   Frontend runs at: `http://localhost:5173`
 
 ---
 
-### 4. Running Production Builds
-To test the production build locally:
-```bash
-# In frontend directory
-npm run build
-npm run preview
-```
+## 🌐 Links & Deliverables
 
----
-
-## 🌐 Deployed Application Link
-
-- **Live Web Application**: [https://medispot.pages.dev](https://medispot.pages.dev)
-- **Production Backend API**: [https://mini-hackathon-sliit.onrender.com](https://mini-hackathon-sliit.onrender.com)
-
----
-
-## 🎥 Demonstration Video Link
-
-- **Demonstration Video**: [https://youtu.be/dummy-medispot-demo](https://youtu.be/dummy-medispot-demo)  
-  *(Note: This is currently a placeholder URL as requested and will be updated with the final presentation recording).*
+- **Git Repository**: [https://github.com/asma-mf/mini_hackathon](https://github.com/asma-mf/mini_hackathon)
+- **Deployed Frontend (Cloudflare Pages)**: [https://medispot.pages.dev](https://medispot.pages.dev)
+- **Deployed Backend API (Render)**: [https://mini-hackathon-sliit.onrender.com/api](https://mini-hackathon-sliit.onrender.com/api)
+- **Demonstration Video Link**: [Two-Minute Demonstration Video](https://drive.google.com/drive/folders/1RsSfriihXfDUNVJ2r0Qy7ZXwLjXUeyJO?usp=drive_link)
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for the SLIIT Mini-Hackathon 2026.</sub>
+  <sub>MediSpot · Built with ❤️ for SLIIT Mini-Hackathon 2026</sub>
 </div>
