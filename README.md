@@ -86,7 +86,7 @@ Pharmacist ──► Register ──► Add Medicines ──► Update Stock & P
 
 | Student ID | Member Name | Role / Lead |
 |:---|:---|:---|
-| **IT24103128** | **Dilmith K.H.T** | **Member 2 — AI Search Lead** *(Strong Coder)* |
+| **IT24103128** | **Dilmith K.H.T** | **Member 2 — AI Search Lead** |
 | **IT24101601** | **Asma M.F** | **Member 5 — App Shell, UI Kit & Integration Lead** |
 | **IT24103408** | **Diluminda H.A.T.D** | **Member 1 — Auth & Accounts Lead** |
 | **IT24103834** | **Lafry A.F.H** | **Member 3 — Pharmacy Inventory Lead** |
