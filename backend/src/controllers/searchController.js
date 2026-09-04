@@ -62,15 +62,21 @@ const search = async (req, res) => {
       return m;
     });
 
-    // Sort by distance ascending (nulls last)
-    if (hasLocation) {
-      enriched.sort((a, b) => {
+    // Sort: in-stock first, then by distance ascending (nulls last)
+    enriched.sort((a, b) => {
+      // 1. In-stock pharmacies first
+      if (a.inStock !== b.inStock) {
+        return a.inStock ? -1 : 1;
+      }
+      // 2. Distance ascending
+      if (hasLocation) {
         if (a.distanceKm === null && b.distanceKm === null) return 0;
         if (a.distanceKm === null) return 1;
         if (b.distanceKm === null) return -1;
         return a.distanceKm - b.distanceKm;
-      });
-    }
+      }
+      return 0;
+    });
 
     // Step 6: Group by medicine name → [{ name, pharmacies[] }]
     const grouped = {};
@@ -83,6 +89,27 @@ const search = async (req, res) => {
       name,
       pharmacies,
     }));
+
+    // Sort medicine groups: groups with in-stock pharmacies first, then by closest distance
+    results.sort((gA, gB) => {
+      const hasInStockA = gA.pharmacies.some((p) => p.inStock);
+      const hasInStockB = gB.pharmacies.some((p) => p.inStock);
+      if (hasInStockA !== hasInStockB) return hasInStockA ? -1 : 1;
+
+      if (hasLocation) {
+        const getMinDist = (group) => {
+          const inStockPhs = group.pharmacies.filter((p) => p.inStock && p.distanceKm != null);
+          const candidates = inStockPhs.length ? inStockPhs : group.pharmacies.filter((p) => p.distanceKm != null);
+          if (!candidates.length) return Infinity;
+          return Math.min(...candidates.map((p) => p.distanceKm));
+        };
+        const distA = getMinDist(gA);
+        const distB = getMinDist(gB);
+        if (distA === Infinity && distB === Infinity) return 0;
+        return distA - distB;
+      }
+      return 0;
+    });
 
     return res.json({ results });
   } catch (err) {
