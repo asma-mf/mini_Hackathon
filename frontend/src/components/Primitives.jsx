@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
 import Icon from './Icon';
 
 /* ── Toast notification host ── */
@@ -127,41 +128,54 @@ export function LocationPicker({ initial, onChange, pushToast }) {
   const [pos, setPos] = useState(initial || { lat: 6.9271, lng: 79.8612 });
 
   useEffect(() => {
+    if (!elRef.current) return;
     if (mapRef.current) return;
-    // Dynamic leaflet import to avoid SSR issues
-    import('leaflet').then(L => {
-      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, scrollWheelZoom: false })
-        .setView([pos.lat, pos.lng], 13);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      const icon = L.divIcon({ className: 'ms-pin', html: '<span style="--c:#1e40af"></span>', iconSize: [22, 22], iconAnchor: [11, 11] });
-      const mk = L.marker([pos.lat, pos.lng], { draggable: true, icon }).addTo(map);
+    // Reset container if previously attached
+    if (elRef.current._leaflet_id) {
+      delete elRef.current._leaflet_id;
+    }
 
-      const commit = (latlng) => {
-        const v = { lat: +latlng.lat.toFixed(5), lng: +latlng.lng.toFixed(5) };
-        setPos(v); onChange?.(v);
-      };
-      mk.on('dragend', () => commit(mk.getLatLng()));
-      map.on('click', e => { mk.setLatLng(e.latlng); commit(e.latlng); });
+    const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, scrollWheelZoom: false })
+      .setView([pos.lat, pos.lng], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      mapRef.current = map; mkRef.current = mk;
-      setTimeout(() => map.invalidateSize(), 80);
-      setTimeout(() => map.invalidateSize(), 350);
-    });
-    return () => { if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
+    const icon = L.divIcon({ className: 'ms-pin', html: '<span style="--c:#1e40af"></span>', iconSize: [22, 22], iconAnchor: [11, 11] });
+    const mk = L.marker([pos.lat, pos.lng], { draggable: true, icon }).addTo(map);
+
+    const commit = (latlng) => {
+      const v = { lat: +latlng.lat.toFixed(5), lng: +latlng.lng.toFixed(5) };
+      setPos(v); onChange?.(v);
+    };
+    mk.on('dragend', () => commit(mk.getLatLng()));
+    map.on('click', e => { mk.setLatLng(e.latlng); commit(e.latlng); });
+
+    mapRef.current = map;
+    mkRef.current = mk;
+
+    const t1 = setTimeout(() => map.invalidateSize(), 80);
+    const t2 = setTimeout(() => map.invalidateSize(), 350);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      mkRef.current = null;
+    };
   }, []);
 
   const locate = () => {
     if (!navigator.geolocation) { pushToast?.('Geolocation unavailable', 'info'); return; }
     navigator.geolocation.getCurrentPosition(p => {
-      import('leaflet').then(() => {
-        const v = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
-        mapRef.current?.setView([v.lat, v.lng], 15);
-        mkRef.current?.setLatLng([v.lat, v.lng]);
-        setPos(v); onChange?.(v);
-        pushToast?.('Location pinned!', 'success');
-      });
+      const v = { lat: +p.coords.latitude.toFixed(5), lng: +p.coords.longitude.toFixed(5) };
+      mapRef.current?.setView([v.lat, v.lng], 15);
+      mkRef.current?.setLatLng([v.lat, v.lng]);
+      setPos(v); onChange?.(v);
+      pushToast?.('Location pinned!', 'success');
     }, () => pushToast?.('Location denied — drag the pin manually.', 'error'), { timeout: 6000 });
   };
 

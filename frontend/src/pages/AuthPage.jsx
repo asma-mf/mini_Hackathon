@@ -13,6 +13,23 @@ const btn = (primary = true) => ({
     : { background:'#f1f5f9', color:'#475569' }),
 });
 
+/* ── Segmented control helper ── */
+const Seg = ({ options, value, onChange }) => (
+  <div style={{ position:'relative', display:'grid', gridTemplateColumns:`repeat(${options.length},1fr)`, borderRadius:12, border:'1px solid #e2e8f0', background:'#f1f5f9', padding:4 }}>
+    <span aria-hidden="true" style={{
+      position:'absolute', inset:4, width:`calc(${100/options.length}% - ${options.length === 2 ? 4 : 2}px)`,
+      borderRadius:9, background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,.1)',
+      transition:'transform .25s ease', transform:`translateX(${options.findIndex(o=>o.id===value) * 100}%)`,
+    }}/>
+    {options.map(o => (
+      <button key={o.id} type="button" onClick={() => onChange(o.id)}
+        style={{ position:'relative', zIndex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, borderRadius:9, padding:'8px 6px', fontSize:13, fontWeight:600, border:'none', background:'transparent', cursor:'pointer', fontFamily:'inherit', color: value === o.id ? '#1e40af' : '#64748b', transition:'color .2s' }}>
+        <Icon name={o.icon} size={14}/>{o.label}
+      </button>
+    ))}
+  </div>
+);
+
 export default function AuthPage({ onAuth }) {
   const navigate = useNavigate();
   const [role, setRole]   = useState('user');          // 'user' | 'pharmacist'
@@ -52,22 +69,7 @@ export default function AuthPage({ onAuth }) {
     }
   };
 
-  /* ── Segmented control helper ── */
-  const Seg = ({ options, value, onChange }) => (
-    <div style={{ position:'relative', display:'grid', gridTemplateColumns:`repeat(${options.length},1fr)`, borderRadius:12, border:'1px solid #e2e8f0', background:'#f1f5f9', padding:4 }}>
-      <span aria-hidden="true" style={{
-        position:'absolute', inset:4, width:`calc(${100/options.length}% - ${options.length === 2 ? 4 : 2}px)`,
-        borderRadius:9, background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,.1)',
-        transition:'transform .25s ease', transform:`translateX(${options.findIndex(o=>o.id===value) * 100}%)`,
-      }}/>
-      {options.map(o => (
-        <button key={o.id} type="button" onClick={() => onChange(o.id)}
-          style={{ position:'relative', zIndex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, borderRadius:9, padding:'8px 6px', fontSize:13, fontWeight:600, border:'none', background:'transparent', cursor:'pointer', fontFamily:'inherit', color: value === o.id ? '#1e40af' : '#64748b', transition:'color .2s' }}>
-          <Icon name={o.icon} size={14}/>{o.label}
-        </button>
-      ))}
-    </div>
-  );
+
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f8fafc', padding:16 }} className="hero-dots">
