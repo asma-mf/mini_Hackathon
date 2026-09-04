@@ -16,6 +16,7 @@ function PharmacyRow({ pharmacy, requestedQty, i }) {
   const ph = pharmacy.pharmacistId || {};
   const status = pharmacy.stockStatus || (pharmacy.inStock ? 'in' : 'out');
   const qty = pharmacy.quantity != null ? pharmacy.quantity : (pharmacy.inStock ? 20 : 0);
+  const price = typeof pharmacy.price === 'number' ? pharmacy.price : 0;
   const st = STATUS[status] || STATUS.out;
 
   return (
@@ -29,7 +30,7 @@ function PharmacyRow({ pharmacy, requestedQty, i }) {
     onMouseLeave={e => { e.currentTarget.style.boxShadow='0 1px 2px rgba(15,23,42,.04), 0 2px 6px -1px rgba(15,23,42,.06)'; e.currentTarget.style.transform='translateY(0)'; }}>
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
           <span style={{ display:'grid', placeItems:'center', width:40, height:40, borderRadius:12, background:'#f1f5f9', color:'#64748b', flexShrink:0 }}>
             <Icon name="store" size={18} />
@@ -44,13 +45,27 @@ function PharmacyRow({ pharmacy, requestedQty, i }) {
           </div>
         </div>
 
-        {/* Status pill */}
-        <span style={{ display:'inline-flex', alignItems:'center', gap:6, flexShrink:0, borderRadius:99, border:`1px solid ${st.border}`, background:st.bg, padding:'5px 12px', fontSize:11, fontWeight:700, color:st.color, whiteSpace:'nowrap' }}>
-          <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, ...(status === 'in' ? { animation:'livePulse 2s ease-out infinite' } : {}) }} />
-          {status === 'in' && `In Stock · ${qty} available`}
-          {status === 'low' && `Low Stock · Only ${qty} left`}
-          {status === 'out' && `Out of Stock`}
-        </span>
+        {/* Status pill & Price */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0, marginLeft:'auto' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, flexShrink:0, borderRadius:99, border:`1px solid ${st.border}`, background:st.bg, padding:'5px 12px', fontSize:11, fontWeight:700, color:st.color, whiteSpace:'nowrap' }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, ...(status === 'in' ? { animation:'livePulse 2s ease-out infinite' } : {}) }} />
+            {status === 'in' && `In Stock · ${qty} available`}
+            {status === 'low' && `Low Stock · Only ${qty} left`}
+            {status === 'out' && `Out of Stock`}
+          </span>
+
+          <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
+            <span style={{ fontSize:11, fontWeight:600, color:'#64748b' }}>Unit:</span>
+            <span style={{ fontFamily:'IBM Plex Mono,monospace', fontWeight:800, fontSize:15, color:'#0f172a' }}>
+              Rs. {price.toFixed(2)}
+            </span>
+            {requestedQty > 1 && (
+              <span style={{ fontSize:11, color:'#64748b', fontWeight:600, marginLeft:4 }}>
+                (Total: Rs. {(price * requestedQty).toFixed(2)})
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Meta row */}
@@ -109,6 +124,8 @@ export default function SearchPage({ user: _user, pushToast }) {
   const [loading, setLoading]         = useState(false);
   const [results, setResults]         = useState(null);   // [{ name, pharmacies[] }]
   const [stockFilter, setStockFilter] = useState('all'); // 'all'|'in'|'low'|'out'
+  const [sortBy, setSortBy]           = useState('distance'); // 'distance'|'price_asc'|'price_desc'
+  const [maxPrice, setMaxPrice]       = useState('all');  // 'all'|'250'|'500'|'1000'
   const [radius, setRadius]           = useState('all');  // '1'|'5'|'10'|'25'|'all'
   const [userCoords, setUserCoords]   = useState(null);
   const debounceRef = useRef(null);
@@ -122,11 +139,11 @@ export default function SearchPage({ user: _user, pushToast }) {
     );
   }, []);
 
-  const doSearch = useCallback(async (q, targetQty = reqQty) => {
+  const doSearch = useCallback(async (q, targetQty = reqQty, sort = sortBy) => {
     if (!q.trim()) { setResults(null); return; }
     setLoading(true);
     try {
-      const body = { query: q, qty: targetQty };
+      const body = { query: q, qty: targetQty, sortBy: sort };
       if (userCoords) { body.lat = userCoords.lat; body.lng = userCoords.lng; }
       const { data } = await api.post('/search', body);
       setResults(data.results);
@@ -135,14 +152,14 @@ export default function SearchPage({ user: _user, pushToast }) {
     } finally {
       setLoading(false);
     }
-  }, [userCoords, reqQty, pushToast]);
+  }, [userCoords, reqQty, sortBy, pushToast]);
 
   // Debounced search — 350ms
   const handleInput = (e) => {
     const v = e.target.value;
     setQuery(v);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(v, reqQty), 350);
+    debounceRef.current = setTimeout(() => doSearch(v, reqQty, sortBy), 350);
   };
 
   const handleQtyChange = (newQty) => {
@@ -150,16 +167,24 @@ export default function SearchPage({ user: _user, pushToast }) {
     setReqQty(val);
     if (query.trim()) {
       clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => doSearch(query, val), 350);
+      debounceRef.current = setTimeout(() => doSearch(query, val, sortBy), 350);
     }
   };
 
-  // Client-side stock status & radius filter + prioritized in-stock sorting
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    if (query.trim()) {
+      doSearch(query, reqQty, newSort);
+    }
+  };
+
+  // Client-side stock status, price & radius filter + prioritized sorting
   const filtered = results
     ?.map(group => {
-      // 1. Evaluate each pharmacy's stock status based on current reqQty
+      // 1. Evaluate each pharmacy's stock status based on current reqQty & normalize price
       const enrichedPhs = group.pharmacies.map(ph => {
         const availableQty = typeof ph.quantity === 'number' ? ph.quantity : (ph.inStock ? 20 : 0);
+        const price = typeof ph.price === 'number' ? ph.price : 0;
         let stockStatus = 'out';
         if (!ph.inStock || availableQty <= 0) {
           stockStatus = 'out';
@@ -171,25 +196,33 @@ export default function SearchPage({ user: _user, pushToast }) {
         return {
           ...ph,
           quantity: availableQty,
+          price,
           stockStatus,
         };
       });
 
-      // 2. Filter by stockFilter and radius
+      // 2. Filter by stockFilter, maxPrice, and radius
       const matchingPhs = enrichedPhs.filter(ph => {
         if (stockFilter === 'in' && ph.stockStatus !== 'in') return false;
         if (stockFilter === 'low' && ph.stockStatus !== 'low') return false;
         if (stockFilter === 'out' && ph.stockStatus !== 'out') return false;
+        if (maxPrice !== 'all' && ph.price > Number(maxPrice)) return false;
         if (radius !== 'all' && ph.distanceKm != null && ph.distanceKm > Number(radius)) return false;
         return true;
       });
 
-      // 3. Sort pharmacies within group: in (0) < low (1) < out (2), then by distance ascending
+      // 3. Sort pharmacies within group: in (0) < low (1) < out (2), then by chosen sortBy
       const rankMap = { in: 0, low: 1, out: 2 };
       matchingPhs.sort((a, b) => {
         const rankA = rankMap[a.stockStatus] ?? 2;
         const rankB = rankMap[b.stockStatus] ?? 2;
         if (rankA !== rankB) return rankA - rankB;
+
+        if (sortBy === 'price_asc') {
+          if (a.price !== b.price) return a.price - b.price;
+        } else if (sortBy === 'price_desc') {
+          if (a.price !== b.price) return b.price - a.price;
+        }
 
         if (a.distanceKm === null && b.distanceKm === null) return 0;
         if (a.distanceKm === null) return 1;
@@ -213,6 +246,24 @@ export default function SearchPage({ user: _user, pushToast }) {
       const rankA = getRank(gA);
       const rankB = getRank(gB);
       if (rankA !== rankB) return rankA - rankB;
+
+      if (sortBy === 'price_asc') {
+        const getMinPrice = (group) => {
+          const phsWithStock = group.pharmacies.filter(p => p.stockStatus !== 'out');
+          const candidates = phsWithStock.length ? phsWithStock : group.pharmacies;
+          return Math.min(...candidates.map(p => p.price || 0));
+        };
+        const pDiff = getMinPrice(gA) - getMinPrice(gB);
+        if (pDiff !== 0) return pDiff;
+      } else if (sortBy === 'price_desc') {
+        const getMaxPrice = (group) => {
+          const phsWithStock = group.pharmacies.filter(p => p.stockStatus !== 'out');
+          const candidates = phsWithStock.length ? phsWithStock : group.pharmacies;
+          return Math.max(...candidates.map(p => p.price || 0));
+        };
+        const pDiff = getMaxPrice(gB) - getMaxPrice(gA);
+        if (pDiff !== 0) return pDiff;
+      }
 
       const getMinDist = (group) => {
         const phsWithStock = group.pharmacies.filter(p => p.stockStatus !== 'out' && p.distanceKm != null);
@@ -308,7 +359,7 @@ export default function SearchPage({ user: _user, pushToast }) {
         </div>
       </div>
 
-      {/* Filters bar: Stock Availability & Radius */}
+      {/* Filters bar: Stock, Sort, Max Price & Radius */}
       {results && (
         <div className="anim-fadeUp" style={{ animationDelay:'80ms', display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
           {/* Stock availability filter */}
@@ -340,10 +391,59 @@ export default function SearchPage({ user: _user, pushToast }) {
             ))}
           </div>
 
+          <span style={{ width:1, height:18, background:'#e2e8f0', margin:'0 2px' }} />
+
+          {/* Sort By Filter */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+            <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Sort:</span>
+            {[
+              { id:'distance', label:'Closest' },
+              { id:'price_asc', label:'Price: Low to High' },
+              { id:'price_desc', label:'Price: High to Low' },
+            ].map(opt => (
+              <button key={opt.id} type="button" onClick={() => handleSortChange(opt.id)}
+                style={{
+                  borderRadius:99,
+                  border: sortBy === opt.id ? '1px solid #1e40af' : '1px solid #e2e8f0',
+                  background: sortBy === opt.id ? '#1e40af' : '#fff',
+                  color: sortBy === opt.id ? '#fff' : '#64748b',
+                  padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+                  fontFamily:'inherit', transition:'all .15s',
+                }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <span style={{ width:1, height:18, background:'#e2e8f0', margin:'0 2px' }} />
+
+          {/* Max Price Filter */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+            <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Max Price:</span>
+            {[
+              { id:'all', label:'Any' },
+              { id:'250', label:'< Rs. 250' },
+              { id:'500', label:'< Rs. 500' },
+              { id:'1000', label:'< Rs. 1000' },
+            ].map(opt => (
+              <button key={opt.id} type="button" onClick={() => setMaxPrice(opt.id)}
+                style={{
+                  borderRadius:99,
+                  border: maxPrice === opt.id ? '1px solid #1e40af' : '1px solid #e2e8f0',
+                  background: maxPrice === opt.id ? '#1e40af' : '#fff',
+                  color: maxPrice === opt.id ? '#fff' : '#64748b',
+                  padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+                  fontFamily:'inherit', transition:'all .15s',
+                }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* Radius filter (only if location available) */}
           {userCoords && (
             <>
-              <span style={{ width:1, height:18, background:'#e2e8f0', margin:'0 4px' }} />
+              <span style={{ width:1, height:18, background:'#e2e8f0', margin:'0 2px' }} />
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                 <Icon name="sliders" size={13} style={{ color:'#94a3b8' }} />
                 <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Radius:</span>
@@ -381,7 +481,7 @@ export default function SearchPage({ user: _user, pushToast }) {
           </span>
           <h3 style={{ fontFamily:'Sora,sans-serif', fontWeight:700, color:'#334155', fontSize:16 }}>No matching pharmacies found</h3>
           <p style={{ fontSize:13, color:'#94a3b8', marginTop:6 }}>
-            {stockFilter !== 'all' || radius !== 'all' ? 'Try adjusting your stock or radius filter, or ' : ''}try a different name or spelling.
+            {stockFilter !== 'all' || radius !== 'all' || maxPrice !== 'all' ? 'Try adjusting your stock, price, or radius filters, or ' : ''}try a different name or spelling.
           </p>
         </div>
       )}

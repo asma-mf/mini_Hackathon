@@ -8,7 +8,7 @@ const { haversineKm } = require('../utils/haversine');
 // ---------------------------------------------------------------------------
 const search = async (req, res) => {
   try {
-    const { query, lat, lng, qty, quantity } = req.body;
+    const { query, lat, lng, qty, quantity, sortBy = 'distance' } = req.body;
 
     if (!query || !query.trim()) {
       return res.status(400).json({ message: 'query is required' });
@@ -63,6 +63,7 @@ const search = async (req, res) => {
       // Quantity & stockStatus relative to reqQty
       const availableQty = typeof m.quantity === 'number' ? m.quantity : (m.inStock ? 20 : 0);
       m.quantity = availableQty;
+      m.price = typeof m.price === 'number' ? m.price : 0;
 
       if (!m.inStock || availableQty <= 0) {
         m.stockStatus = 'out';
@@ -75,7 +76,7 @@ const search = async (req, res) => {
       return m;
     });
 
-    // Sort: 'in' first, then 'low', then 'out', each by distance ascending
+    // Sort: 'in' first, then 'low', then 'out', followed by chosen sort option (price or distance)
     const statusRank = { in: 0, low: 1, out: 2 };
     enriched.sort((a, b) => {
       const rankA = statusRank[a.stockStatus] ?? 2;
@@ -83,13 +84,20 @@ const search = async (req, res) => {
       if (rankA !== rankB) {
         return rankA - rankB;
       }
+
+      if (sortBy === 'price_asc') {
+        if (a.price !== b.price) return a.price - b.price;
+      } else if (sortBy === 'price_desc') {
+        if (a.price !== b.price) return b.price - a.price;
+      }
+
       if (hasLocation) {
         if (a.distanceKm === null && b.distanceKm === null) return 0;
         if (a.distanceKm === null) return 1;
         if (b.distanceKm === null) return -1;
         return a.distanceKm - b.distanceKm;
       }
-      return 0;
+      return a.price - b.price;
     });
 
     // Step 6: Group by medicine name → [{ name, pharmacies[] }]
@@ -115,6 +123,24 @@ const search = async (req, res) => {
       const rankA = getGroupRank(gA);
       const rankB = getGroupRank(gB);
       if (rankA !== rankB) return rankA - rankB;
+
+      if (sortBy === 'price_asc') {
+        const getMinPrice = (group) => {
+          const phsWithStock = group.pharmacies.filter((p) => p.stockStatus !== 'out');
+          const candidates = phsWithStock.length ? phsWithStock : group.pharmacies;
+          return Math.min(...candidates.map((p) => p.price || 0));
+        };
+        const priceDiff = getMinPrice(gA) - getMinPrice(gB);
+        if (priceDiff !== 0) return priceDiff;
+      } else if (sortBy === 'price_desc') {
+        const getMaxPrice = (group) => {
+          const phsWithStock = group.pharmacies.filter((p) => p.stockStatus !== 'out');
+          const candidates = phsWithStock.length ? phsWithStock : group.pharmacies;
+          return Math.max(...candidates.map((p) => p.price || 0));
+        };
+        const priceDiff = getMaxPrice(gB) - getMaxPrice(gA);
+        if (priceDiff !== 0) return priceDiff;
+      }
 
       if (hasLocation) {
         const getMinDist = (group) => {

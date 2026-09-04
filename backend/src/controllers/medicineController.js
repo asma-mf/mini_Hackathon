@@ -5,17 +5,19 @@ const Medicine = require('../models/Medicine');
 // ---------------------------------------------------------------------------
 const addMedicine = async (req, res) => {
   try {
-    const { name, quantity } = req.body;
+    const { name, quantity, price } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Medicine name is required' });
     }
 
     const parsedQty = quantity !== undefined ? Math.max(0, parseInt(quantity, 10) || 0) : 20;
+    const parsedPrice = price !== undefined ? Math.max(0, parseFloat(price) || 0) : 0;
 
     const medicine = await Medicine.create({
       pharmacistId: req.user.id,
       name: name.trim(),
       quantity: parsedQty,
+      price: parsedPrice,
       inStock: parsedQty > 0,
     });
 
@@ -30,17 +32,23 @@ const addMedicine = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/medicines/mine?status=in|out|all — pharmacist's own list
+// GET /api/medicines/mine?status=in|out|all&sort=name|price_asc|price_desc
 // ---------------------------------------------------------------------------
 const getMyMedicines = async (req, res) => {
   try {
-    const { status = 'all' } = req.query;
+    const { status = 'all', sort = 'name' } = req.query;
 
     const filter = { pharmacistId: req.user.id };
     if (status === 'in') filter.inStock = true;
     else if (status === 'out') filter.inStock = false;
 
-    const medicines = await Medicine.find(filter).sort({ name: 1 });
+    let sortObj = { name: 1 };
+    if (sort === 'price_asc') sortObj = { price: 1, name: 1 };
+    else if (sort === 'price_desc') sortObj = { price: -1, name: 1 };
+    else if (sort === 'qty_asc') sortObj = { quantity: 1, name: 1 };
+    else if (sort === 'qty_desc') sortObj = { quantity: -1, name: 1 };
+
+    const medicines = await Medicine.find(filter).sort(sortObj);
     return res.json({ medicines });
   } catch (err) {
     console.error('[getMyMedicines]', err);
@@ -101,6 +109,31 @@ const updateQuantity = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
+// PATCH /api/medicines/:id/price — update price
+// ---------------------------------------------------------------------------
+const updatePrice = async (req, res) => {
+  try {
+    const { price } = req.body;
+    const medicine = await Medicine.findById(req.params.id);
+    if (!medicine) {
+      return res.status(404).json({ message: 'Medicine not found' });
+    }
+    if (medicine.pharmacistId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You do not own this medicine' });
+    }
+
+    const p = Math.max(0, parseFloat(price) || 0);
+    medicine.price = p;
+    await medicine.save();
+
+    return res.json({ medicine });
+  } catch (err) {
+    console.error('[updatePrice]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ---------------------------------------------------------------------------
 // DELETE /api/medicines/:id — remove a medicine
 // ---------------------------------------------------------------------------
 const deleteMedicine = async (req, res) => {
@@ -121,4 +154,4 @@ const deleteMedicine = async (req, res) => {
   }
 };
 
-module.exports = { addMedicine, getMyMedicines, toggleStock, updateQuantity, deleteMedicine };
+module.exports = { addMedicine, getMyMedicines, toggleStock, updateQuantity, updatePrice, deleteMedicine };
