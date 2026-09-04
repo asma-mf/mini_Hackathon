@@ -17,6 +17,11 @@ const medicineSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    quantity: {
+      type: Number,
+      default: 20,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

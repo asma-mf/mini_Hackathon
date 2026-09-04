@@ -41,7 +41,14 @@ async function queryLLM(distinctNames, query) {
     return JSON.parse(cleaned);
   } catch (err) {
     console.error('[LLM] Gemini error:', err.message);
-    return [];
+    // Graceful fallback: substring / fuzzy token match so search never breaks when rate-limited
+    const qLower = query.toLowerCase().trim();
+    const tokens = qLower.split(/\s+/).filter((t) => t.length > 1);
+    return distinctNames.filter((name) => {
+      const nLower = name.toLowerCase();
+      if (nLower.includes(qLower)) return true;
+      return tokens.some((t) => nLower.includes(t));
+    });
   }
 }
 

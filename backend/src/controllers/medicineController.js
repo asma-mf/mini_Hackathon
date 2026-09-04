@@ -5,14 +5,18 @@ const Medicine = require('../models/Medicine');
 // ---------------------------------------------------------------------------
 const addMedicine = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, quantity } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Medicine name is required' });
     }
 
+    const parsedQty = quantity !== undefined ? Math.max(0, parseInt(quantity, 10) || 0) : 20;
+
     const medicine = await Medicine.create({
       pharmacistId: req.user.id,
       name: name.trim(),
+      quantity: parsedQty,
+      inStock: parsedQty > 0,
     });
 
     return res.status(201).json({ medicine });
@@ -58,11 +62,40 @@ const toggleStock = async (req, res) => {
     }
 
     medicine.inStock = !medicine.inStock;
+    if (medicine.inStock && (medicine.quantity == null || medicine.quantity === 0)) {
+      medicine.quantity = 10;
+    }
     await medicine.save();
 
     return res.json({ medicine });
   } catch (err) {
     console.error('[toggleStock]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// PATCH /api/medicines/:id/quantity — update quantity
+// ---------------------------------------------------------------------------
+const updateQuantity = async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    const medicine = await Medicine.findById(req.params.id);
+    if (!medicine) {
+      return res.status(404).json({ message: 'Medicine not found' });
+    }
+    if (medicine.pharmacistId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You do not own this medicine' });
+    }
+
+    const q = Math.max(0, parseInt(quantity, 10) || 0);
+    medicine.quantity = q;
+    medicine.inStock = q > 0;
+    await medicine.save();
+
+    return res.json({ medicine });
+  } catch (err) {
+    console.error('[updateQuantity]', err);
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -88,4 +121,4 @@ const deleteMedicine = async (req, res) => {
   }
 };
 
-module.exports = { addMedicine, getMyMedicines, toggleStock, deleteMedicine };
+module.exports = { addMedicine, getMyMedicines, toggleStock, updateQuantity, deleteMedicine };
