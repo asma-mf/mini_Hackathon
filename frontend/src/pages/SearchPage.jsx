@@ -94,11 +94,12 @@ function PharmacyRow({ med, pharmacy, i }) {
 }
 
 /* ── Search page ── */
-export default function SearchPage({ user, pushToast }) {
-  const [query, setQuery]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [results, setResults]   = useState(null);   // [{ name, pharmacies[] }]
-  const [radius, setRadius]     = useState('all');  // '1'|'5'|'10'|'25'|'all'
+export default function SearchPage({ user: _user, pushToast }) {
+  const [query, setQuery]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [results, setResults]       = useState(null);   // [{ name, pharmacies[] }]
+  const [stockFilter, setStockFilter] = useState('all'); // 'all'|'in'|'out'
+  const [radius, setRadius]         = useState('all');  // '1'|'5'|'10'|'25'|'all'
   const [userCoords, setUserCoords] = useState(null);
   const debounceRef = useRef(null);
 
@@ -134,16 +135,55 @@ export default function SearchPage({ user, pushToast }) {
     debounceRef.current = setTimeout(() => doSearch(v), 350);
   };
 
-  // Client-side radius filter
-  const filtered = results?.map(group => ({
-    ...group,
-    pharmacies: group.pharmacies.filter(ph => {
-      if (radius === 'all' || ph.distanceKm == null) return true;
-      return ph.distanceKm <= Number(radius);
-    }),
-  })).filter(g => g.pharmacies.length > 0);
+  // Client-side stock status & radius filter + prioritized in-stock sorting
+  const filtered = results
+    ?.map(group => {
+      // 1. Filter pharmacies in this medicine group
+      const matchingPhs = group.pharmacies.filter(ph => {
+        if (stockFilter === 'in' && !ph.inStock) return false;
+        if (stockFilter === 'out' && ph.inStock) return false;
+        if (radius !== 'all' && ph.distanceKm != null && ph.distanceKm > Number(radius)) return false;
+        return true;
+      });
+
+      // 2. Sort pharmacies within group: In-stock first, then by distance ascending
+      matchingPhs.sort((a, b) => {
+        if (a.inStock !== b.inStock) {
+          return a.inStock ? -1 : 1;
+        }
+        if (a.distanceKm === null && b.distanceKm === null) return 0;
+        if (a.distanceKm === null) return 1;
+        if (b.distanceKm === null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+
+      return {
+        ...group,
+        pharmacies: matchingPhs,
+      };
+    })
+    .filter(g => g.pharmacies.length > 0)
+    // 3. Sort groups: medicine groups with in-stock pharmacies appear first, then sorted by closest distance
+    .sort((gA, gB) => {
+      const hasInStockA = gA.pharmacies.some(p => p.inStock);
+      const hasInStockB = gB.pharmacies.some(p => p.inStock);
+      if (hasInStockA !== hasInStockB) return hasInStockA ? -1 : 1;
+
+      const getMinDist = (group) => {
+        const inStockPhs = group.pharmacies.filter(p => p.inStock && p.distanceKm != null);
+        const candidates = inStockPhs.length ? inStockPhs : group.pharmacies.filter(p => p.distanceKm != null);
+        if (!candidates.length) return Infinity;
+        return Math.min(...candidates.map(p => p.distanceKm));
+      };
+
+      const distA = getMinDist(gA);
+      const distB = getMinDist(gB);
+      if (distA === Infinity && distB === Infinity) return 0;
+      return distA - distB;
+    });
 
   const total = filtered?.reduce((s, g) => s + g.pharmacies.length, 0) ?? 0;
+  const inStockTotal = filtered?.reduce((s, g) => s + g.pharmacies.filter(p => p.inStock).length, 0) ?? 0;
 
   return (
     <div style={{ maxWidth:880, margin:'0 auto', padding:'32px 16px 60px' }}>
@@ -192,17 +232,60 @@ export default function SearchPage({ user, pushToast }) {
         </div>
       </div>
 
-      {/* Radius filter (only if location available) */}
-      {userCoords && results && (
-        <div className="anim-fadeUp" style={{ animationDelay:'80ms', display:'flex', alignItems:'center', gap:8, marginBottom:20, flexWrap:'wrap' }}>
-          <Icon name="sliders" size={14} style={{ color:'#94a3b8' }} />
-          <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Radius:</span>
-          {[['1','1 km'],['5','5 km'],['10','10 km'],['25','25 km'],['all','All']].map(([val, label]) => (
-            <button key={val} onClick={() => setRadius(val)}
-              style={{ borderRadius:99, border: radius === val ? '1px solid #1e40af' : '1px solid #e2e8f0', background: radius === val ? '#1e40af' : '#fff', color: radius === val ? '#fff' : '#64748b', padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
-              {label}
-            </button>
-          ))}
+      {/* Filters bar: Stock Availability & Radius */}
+      {results && (
+        <div className="anim-fadeUp" style={{ animationDelay:'80ms', display:'flex', alignItems:'center', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+          {/* Stock availability filter */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+            <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Stock:</span>
+            {[
+              { id:'all', label:'All' },
+              { id:'in',  label:'In Stock', dot:'#10b981' },
+              { id:'out', label:'Out of Stock', dot:'#ef4444' },
+            ].map(opt => (
+              <button key={opt.id} type="button" onClick={() => setStockFilter(opt.id)}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:6, borderRadius:99,
+                  border: stockFilter === opt.id ? '1px solid #1e40af' : '1px solid #e2e8f0',
+                  background: stockFilter === opt.id ? '#1e40af' : '#fff',
+                  color: stockFilter === opt.id ? '#fff' : '#64748b',
+                  padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+                  fontFamily:'inherit', transition:'all .15s',
+                }}>
+                {opt.dot && (
+                  <span style={{
+                    width:7, height:7, borderRadius:'50%',
+                    background: stockFilter === opt.id ? '#fff' : opt.dot,
+                  }} />
+                )}
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Radius filter (only if location available) */}
+          {userCoords && (
+            <>
+              <span style={{ width:1, height:18, background:'#e2e8f0', margin:'0 4px' }} />
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                <Icon name="sliders" size={13} style={{ color:'#94a3b8' }} />
+                <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Radius:</span>
+                {[['1','1 km'],['5','5 km'],['10','10 km'],['25','25 km'],['all','All']].map(([val, label]) => (
+                  <button key={val} type="button" onClick={() => setRadius(val)}
+                    style={{
+                      borderRadius:99,
+                      border: radius === val ? '1px solid #1e40af' : '1px solid #e2e8f0',
+                      background: radius === val ? '#1e40af' : '#fff',
+                      color: radius === val ? '#fff' : '#64748b',
+                      padding:'4px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+                      fontFamily:'inherit', transition:'all .15s',
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -219,9 +302,9 @@ export default function SearchPage({ user, pushToast }) {
           <span style={{ display:'inline-grid', placeItems:'center', width:48, height:48, borderRadius:14, background:'#f1f5f9', color:'#94a3b8', marginBottom:12 }}>
             <Icon name="mapPinOff" size={22} />
           </span>
-          <h3 style={{ fontFamily:'Sora,sans-serif', fontWeight:700, color:'#334155', fontSize:16 }}>No results found</h3>
+          <h3 style={{ fontFamily:'Sora,sans-serif', fontWeight:700, color:'#334155', fontSize:16 }}>No matching pharmacies found</h3>
           <p style={{ fontSize:13, color:'#94a3b8', marginTop:6 }}>
-            {radius !== 'all' ? 'Try a wider radius or ' : ''}Try a different name or spelling.
+            {stockFilter !== 'all' || radius !== 'all' ? 'Try adjusting your stock or radius filter, or ' : ''}try a different name or spelling.
           </p>
         </div>
       )}
@@ -238,7 +321,12 @@ export default function SearchPage({ user, pushToast }) {
       {!loading && filtered && filtered.length > 0 && (
         <>
           <p className="anim-fadeUp" style={{ fontSize:13, color:'#64748b', fontWeight:500, marginBottom:16 }}>
-            Found <span style={{ color:'#1e40af', fontWeight:700 }}>{total} pharmacies</span> carrying matching medicines
+            Found <span style={{ color:'#1e40af', fontWeight:700 }}>{total} {total === 1 ? 'pharmacy' : 'pharmacies'}</span> carrying matching medicines
+            {stockFilter === 'all' && total > 0 && inStockTotal > 0 && (
+              <span style={{ color:'#059669', fontWeight:600, marginLeft:6 }}>
+                ({inStockTotal} in stock)
+              </span>
+            )}
           </p>
           {filtered.map(group => (
             <div key={group.name} style={{ marginBottom:32 }}>
