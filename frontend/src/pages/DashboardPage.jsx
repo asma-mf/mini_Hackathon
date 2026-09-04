@@ -25,9 +25,10 @@ function Toggle({ checked, onChange }) {
 }
 
 /* ── Medicine row ── */
-function MedicineRow({ med, onToggle, onDelete }) {
+function MedicineRow({ med, onToggle, onUpdateQty, onDelete }) {
   const st = med.inStock ? STATUS.in : STATUS.out;
   const [delConfirm, setDelConfirm] = useState(false);
+  const qty = med.quantity != null ? med.quantity : (med.inStock ? 20 : 0);
 
   return (
     <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderBottom:'1px solid #f1f5f9', transition:'background .15s' }}
@@ -41,6 +42,19 @@ function MedicineRow({ med, onToggle, onDelete }) {
       <span style={{ flex:1, fontSize:14, fontWeight:600, color:'#1e293b', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
         {med.name}
       </span>
+
+      {/* Quantity stepper */}
+      <div style={{ display:'inline-flex', alignItems:'center', gap:4, borderRadius:8, background:'#f8fafc', border:'1px solid #e2e8f0', padding:'2px 6px', flexShrink:0 }}>
+        <button type="button" onClick={() => onUpdateQty(med._id, Math.max(0, qty - 1))}
+          title="Decrease quantity"
+          style={{ border:'none', background:'none', cursor:'pointer', padding:'2px 4px', color:'#64748b', fontWeight:700, fontSize:14, lineHeight:1 }}>-</button>
+        <span style={{ fontSize:12, fontFamily:'IBM Plex Mono,monospace', fontWeight:700, minWidth:26, textAlign:'center', color: qty > 0 ? '#1e40af' : '#94a3b8' }}>
+          {qty}
+        </span>
+        <button type="button" onClick={() => onUpdateQty(med._id, qty + 1)}
+          title="Increase quantity"
+          style={{ border:'none', background:'none', cursor:'pointer', padding:'2px 4px', color:'#64748b', fontWeight:700, fontSize:14, lineHeight:1 }}>+</button>
+      </div>
 
       <span style={{ display:'inline-flex', alignItems:'center', gap:5, borderRadius:99, border:`1px solid ${st.border}`, background:st.bg, padding:'3px 10px', fontSize:11, fontWeight:700, color:st.color, whiteSpace:'nowrap', flexShrink:0 }}>
         <span style={{ width:6, height:6, borderRadius:'50%', background:st.color }} />
@@ -74,6 +88,7 @@ export default function DashboardPage({ user, pushToast }) {
   const [tab, setTab]   = useState('all');  // all|in|out
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
+  const [newQty, setNewQty]   = useState('20');
   const [adding, setAdding]   = useState(false);
 
   const load = useCallback(async (status = 'all') => {
@@ -92,21 +107,30 @@ export default function DashboardPage({ user, pushToast }) {
     if (!newName.trim()) return;
     setAdding(true);
     try {
-      await api.post('/medicines', { name: newName.trim() });
+      const quantity = Math.max(0, parseInt(newQty, 10) || 0);
+      await api.post('/medicines', { name: newName.trim(), quantity });
       setNewName('');
+      setNewQty('20');
       load(tab);
-      pushToast(`"${newName.trim()}" added!`, 'success');
+      pushToast(`"${newName.trim()}" added with stock ${quantity}!`, 'success');
     } catch (ex) {
       pushToast(ex.response?.data?.message || 'Failed to add', 'error');
     } finally { setAdding(false); }
   };
 
-  const toggleStock = async (id, currentlyIn) => {
+  const toggleStock = async (id, _currentlyIn) => {
     try {
       const { data } = await api.patch(`/medicines/${id}/stock`);
       setMedicines(ms => ms.map(m => m._id === id ? data.medicine : m));
       pushToast(data.medicine.inStock ? 'Marked as In Stock' : 'Marked as Out of Stock', 'success');
     } catch { pushToast('Failed to update stock', 'error'); }
+  };
+
+  const updateQty = async (id, quantity) => {
+    try {
+      const { data } = await api.patch(`/medicines/${id}/quantity`, { quantity });
+      setMedicines(ms => ms.map(m => m._id === id ? data.medicine : m));
+    } catch { pushToast('Failed to update quantity', 'error'); }
   };
 
   const deleteMedicine = async (id) => {
@@ -169,14 +193,25 @@ export default function DashboardPage({ user, pushToast }) {
           <Icon name="plus" size={16} style={{ color:'#1e40af' }} />
           <span style={{ fontSize:14, fontWeight:700, color:'#0f172a' }}>Add Medicine</span>
         </div>
-        <form onSubmit={addMedicine} style={{ padding:'16px 20px', display:'flex', gap:10 }}>
+        <form onSubmit={addMedicine} style={{ padding:'16px 20px', display:'flex', gap:10, flexWrap:'wrap' }}>
           <input
             value={newName} onChange={e => setNewName(e.target.value)}
             placeholder="Medicine name (e.g. Paracetamol 500mg)"
-            style={{ flex:1, borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', padding:'10px 14px', fontSize:14, fontWeight:500, color:'#1e293b', outline:'none', fontFamily:'inherit' }}
+            style={{ flex:1, minWidth:200, borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', padding:'10px 14px', fontSize:14, fontWeight:500, color:'#1e293b', outline:'none', fontFamily:'inherit' }}
             onFocus={e => { e.target.style.borderColor='#1e40af'; e.target.style.boxShadow='0 0 0 4px rgba(30,64,175,.1)'; e.target.style.background='#fff'; }}
             onBlur={e => { e.target.style.borderColor='#e2e8f0'; e.target.style.boxShadow='none'; e.target.style.background='#f8fafc'; }}
           />
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ fontSize:12, fontWeight:600, color:'#64748b' }}>Qty:</span>
+            <input
+              type="number" min="0" max="9999"
+              value={newQty} onChange={e => setNewQty(e.target.value)}
+              placeholder="Qty"
+              style={{ width:72, borderRadius:12, border:'1px solid #e2e8f0', background:'#f8fafc', padding:'10px 12px', fontSize:14, fontWeight:600, color:'#1e293b', outline:'none', fontFamily:'inherit' }}
+              onFocus={e => { e.target.style.borderColor='#1e40af'; e.target.style.boxShadow='0 0 0 4px rgba(30,64,175,.1)'; e.target.style.background='#fff'; }}
+              onBlur={e => { e.target.style.borderColor='#e2e8f0'; e.target.style.boxShadow='none'; e.target.style.background='#f8fafc'; }}
+            />
+          </div>
           <button type="submit" disabled={adding || !newName.trim()}
             style={{ display:'inline-flex', alignItems:'center', gap:6, borderRadius:12, border:'none', background:'#1e40af', color:'#fff', padding:'10px 18px', fontSize:13, fontWeight:700, cursor: adding ? 'wait' : 'pointer', fontFamily:'inherit', opacity: adding || !newName.trim() ? .6 : 1, whiteSpace:'nowrap' }}>
             {adding ? <><Icon name="refresh" size={14} className="spin" />Adding…</> : <><Icon name="plus" size={14} />Add</>}
@@ -206,7 +241,7 @@ export default function DashboardPage({ user, pushToast }) {
           </div>
         ) : (
           medicines.map(med => (
-            <MedicineRow key={med._id} med={med} onToggle={toggleStock} onDelete={deleteMedicine} />
+            <MedicineRow key={med._id} med={med} onToggle={toggleStock} onUpdateQty={updateQty} onDelete={deleteMedicine} />
           ))
         )}
       </div>

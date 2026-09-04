@@ -4,6 +4,7 @@ const {
   addMedicine,
   getMyMedicines,
   toggleStock,
+  updateQuantity,
   deleteMedicine,
 } = require('../controllers/medicineController');
 
@@ -15,6 +16,7 @@ router.use(authenticate, requireRole('pharmacist'));
 router.post('/', addMedicine);
 router.get('/mine', getMyMedicines);
 router.patch('/:id/stock', toggleStock);
+router.patch('/:id/quantity', updateQuantity);
 router.delete('/:id', deleteMedicine);
 
 module.exports = router;

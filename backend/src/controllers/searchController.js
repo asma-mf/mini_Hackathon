@@ -8,12 +8,13 @@ const { haversineKm } = require('../utils/haversine');
 // ---------------------------------------------------------------------------
 const search = async (req, res) => {
   try {
-    const { query, lat, lng } = req.body;
+    const { query, lat, lng, qty, quantity } = req.body;
 
     if (!query || !query.trim()) {
       return res.status(400).json({ message: 'query is required' });
     }
 
+    const reqQty = Math.max(1, parseInt(quantity || qty, 10) || 1);
     const userLat = typeof lat === 'number' ? lat : null;
     const userLng = typeof lng === 'number' ? lng : null;
     const hasLocation = userLat !== null && userLng !== null;
@@ -21,7 +22,7 @@ const search = async (req, res) => {
     // Step 1: Get all distinct medicine names in the DB
     const distinctNames = await Medicine.distinct('name');
     if (!distinctNames.length) {
-      return res.json({ results: [] });
+      return res.json({ results: [], requestedQty: reqQty });
     }
 
     // Step 2: Ask LLM which names plausibly match the query
@@ -41,14 +42,14 @@ const search = async (req, res) => {
     );
 
     if (!matchedNames.length) {
-      return res.json({ results: [] });
+      return res.json({ results: [], requestedQty: reqQty });
     }
 
     // Step 4: Fetch matching medicines with pharmacist details
     const medicines = await Medicine.find({ name: { $in: matchedNames } })
       .populate('pharmacistId', 'name lat lng phone whatsapp pharmacyId');
 
-    // Step 5: Attach distance if user provided location
+    // Step 5: Attach distance & compute stock status relative to requested quantity
     const enriched = medicines.map((med) => {
       const m = med.toObject();
       const pharmacist = m.pharmacistId;
@@ -59,16 +60,29 @@ const search = async (req, res) => {
         m.distanceKm = null;
       }
 
+      // Quantity & stockStatus relative to reqQty
+      const availableQty = typeof m.quantity === 'number' ? m.quantity : (m.inStock ? 20 : 0);
+      m.quantity = availableQty;
+
+      if (!m.inStock || availableQty <= 0) {
+        m.stockStatus = 'out';
+      } else if (availableQty >= reqQty) {
+        m.stockStatus = 'in'; // In Stock (satisfies requested quantity)
+      } else {
+        m.stockStatus = 'low'; // Low Stock (available, but fewer than requested)
+      }
+
       return m;
     });
 
-    // Sort: in-stock first, then by distance ascending (nulls last)
+    // Sort: 'in' first, then 'low', then 'out', each by distance ascending
+    const statusRank = { in: 0, low: 1, out: 2 };
     enriched.sort((a, b) => {
-      // 1. In-stock pharmacies first
-      if (a.inStock !== b.inStock) {
-        return a.inStock ? -1 : 1;
+      const rankA = statusRank[a.stockStatus] ?? 2;
+      const rankB = statusRank[b.stockStatus] ?? 2;
+      if (rankA !== rankB) {
+        return rankA - rankB;
       }
-      // 2. Distance ascending
       if (hasLocation) {
         if (a.distanceKm === null && b.distanceKm === null) return 0;
         if (a.distanceKm === null) return 1;
@@ -90,16 +104,22 @@ const search = async (req, res) => {
       pharmacies,
     }));
 
-    // Sort medicine groups: groups with in-stock pharmacies first, then by closest distance
+    // Sort medicine groups: groups with 'in' pharmacies first, then 'low', then 'out'
+    const getGroupRank = (group) => {
+      if (group.pharmacies.some((p) => p.stockStatus === 'in')) return 0;
+      if (group.pharmacies.some((p) => p.stockStatus === 'low')) return 1;
+      return 2;
+    };
+
     results.sort((gA, gB) => {
-      const hasInStockA = gA.pharmacies.some((p) => p.inStock);
-      const hasInStockB = gB.pharmacies.some((p) => p.inStock);
-      if (hasInStockA !== hasInStockB) return hasInStockA ? -1 : 1;
+      const rankA = getGroupRank(gA);
+      const rankB = getGroupRank(gB);
+      if (rankA !== rankB) return rankA - rankB;
 
       if (hasLocation) {
         const getMinDist = (group) => {
-          const inStockPhs = group.pharmacies.filter((p) => p.inStock && p.distanceKm != null);
-          const candidates = inStockPhs.length ? inStockPhs : group.pharmacies.filter((p) => p.distanceKm != null);
+          const phsWithStock = group.pharmacies.filter((p) => p.stockStatus !== 'out' && p.distanceKm != null);
+          const candidates = phsWithStock.length ? phsWithStock : group.pharmacies.filter((p) => p.distanceKm != null);
           if (!candidates.length) return Infinity;
           return Math.min(...candidates.map((p) => p.distanceKm));
         };
@@ -111,7 +131,7 @@ const search = async (req, res) => {
       return 0;
     });
 
-    return res.json({ results });
+    return res.json({ results, requestedQty: reqQty });
   } catch (err) {
     console.error('[search]', err);
     return res.status(500).json({ message: 'Server error' });
