@@ -1,111 +1,101 @@
+/* ============================================================
+   MediSpot — Global Design Tokens & Utilities
+   Fonts: Sora (display), Instrument Sans (body), IBM Plex Mono (mono)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --blue:    #1e40af;
+  --blue-dk: #1e3a8a;
+  --green:   #10b981;
+  --amber:   #f59e0b;
+  --red:     #ef4444;
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --shadow-card: 0 1px 2px rgba(15,23,42,.04), 0 2px 6px -1px rgba(15,23,42,.06);
+  --shadow-lift: 0 14px 28px -10px rgba(30,64,175,.16), 0 4px 10px -4px rgba(15,23,42,.08);
+  --shadow-pop:  0 24px 64px -16px rgba(15,23,42,.3);
+  --font-display: 'Sora', sans-serif;
+  --font-sans:    'Instrument Sans', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+html { font-family: var(--font-sans); background: var(--slate-50); color: var(--slate-900); -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; }
+#root { min-height: 100vh; display: flex; flex-direction: column; }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+::selection { background: var(--blue); color: #fff; }
 
-body {
-  margin: 0;
-}
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: 99px; }
+::-webkit-scrollbar-track { background: transparent; }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+/* ── Animations ── */
+@keyframes fadeUp   { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn    { 0% { opacity:0; transform:scale(.8); } 70% { transform:scale(1.05); } 100% { opacity:1; transform:scale(1); } }
+@keyframes toastIn  { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes modalIn  { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes livePulse{ 0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)} 70%{box-shadow:0 0 0 7px rgba(16,185,129,0)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)} }
+@keyframes redPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,.45)} 70%{box-shadow:0 0 0 7px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+@keyframes shimmer  { 100% { transform: translateX(100%); } }
+@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes dropin   { 0%{transform:translateY(-16px) scale(.5);opacity:0} 60%{transform:translateY(3px) scale(1.12);opacity:1} 100%{transform:translateY(0) scale(1);opacity:1} }
+@keyframes barShrink{ from{width:100%} to{width:0%} }
+@keyframes bigCheck { 0%{transform:scale(.3);opacity:0} 60%{transform:scale(1.15);opacity:1} 100%{transform:scale(1);opacity:1} }
+@keyframes drawCheck{ to{stroke-dashoffset:0} }
+@keyframes bounce   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
+.anim-fadeUp   { animation: fadeUp   .5s cubic-bezier(.21,.9,.35,1) both; }
+.anim-fadeIn   { animation: fadeIn   .25s ease both; }
+.anim-popIn    { animation: popIn    .4s cubic-bezier(.21,.9,.35,1) both; }
+.anim-toastIn  { animation: toastIn  .35s cubic-bezier(.21,.9,.35,1) both; }
+.anim-modalIn  { animation: modalIn  .32s cubic-bezier(.21,.9,.35,1) both; }
+.anim-bigCheck { animation: bigCheck .55s cubic-bezier(.21,.9,.35,1) both; }
+.anim-live     { animation: livePulse 2s ease-out infinite; }
+.anim-red      { animation: redPulse 1.8s ease-out infinite; }
+.spin          { animation: spin .8s linear infinite; }
+.bounce        { animation: bounce 1.4s ease-in-out infinite; }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(248,250,252,.85), transparent);
+  animation: shimmer 1.4s infinite;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* ── Hero dots background ── */
+.hero-dots {
+  background-image: radial-gradient(rgba(30,64,175,.08) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* ── Leaflet overrides ── */
+.leaflet-container { font-family: var(--font-sans); background: #e8eef4; }
+.leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 12px 32px -8px rgba(15,23,42,.28); }
+.leaflet-popup-content { margin: 12px 14px; line-height: 1.35; }
+.leaflet-bar { border: none !important; box-shadow: 0 4px 12px -2px rgba(15,23,42,.18) !important; overflow: hidden; border-radius: 10px !important; }
+.leaflet-bar a { border: none !important; color: var(--slate-700) !important; }
+.leaflet-control-attribution { font-size: 9px; background: rgba(255,255,255,.75) !important; }
+.ms-pin { background: transparent; border: none; }
+.ms-pin > span {
+  display: block; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; border: 5px solid var(--c);
+  box-shadow: 0 2px 8px rgba(2,6,23,.35);
+  transition: transform .18s ease; cursor: pointer;
+  animation: dropin .45s cubic-bezier(.21,.9,.35,1) both;
 }
+.ms-pin > span:hover { transform: scale(1.35); }
