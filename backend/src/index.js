@@ -12,20 +12,35 @@ const searchRoutes = require('./routes/search');
 const app = express();
 
 // ---------------------------------------------------------------------------
-// CORS — allow requests from the React dev server
+// CORS — allow requests from local dev and deployed frontend
 // ---------------------------------------------------------------------------
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
-  .map((o) => o.trim());
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (e.g. curl, Postman, mobile apps)
+      if (!origin) return callback(null, true);
+
+      // If wildcard configured or no CLIENT_ORIGIN specified, allow all
+      if (allowedOrigins.includes('*') || allowedOrigins.length === 0) {
+        return callback(null, true);
+      }
+
+      // Check configured origins, localhost, or Cloudflare Pages (.pages.dev)
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.endsWith('.pages.dev');
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error(`CORS blocked: ${origin}`));
+        callback(null, false);
       }
     },
     credentials: true,
