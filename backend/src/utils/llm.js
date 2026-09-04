@@ -30,7 +30,7 @@ async function queryLLM(distinctNames, query) {
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const result = await model.generateContent(buildPrompt(distinctNames, query));
     const text = result.response.text().trim();
@@ -41,13 +41,40 @@ async function queryLLM(distinctNames, query) {
     return JSON.parse(cleaned);
   } catch (err) {
     console.error('[LLM] Gemini error:', err.message);
-    // Graceful fallback: substring / fuzzy token match so search never breaks when rate-limited
+    // Graceful fallback: substring, token, or edit-distance fuzzy match so search never breaks
     const qLower = query.toLowerCase().trim();
     const tokens = qLower.split(/\s+/).filter((t) => t.length > 1);
+
+    const isFuzzyMatch = (target, term) => {
+      if (target.includes(term)) return true;
+      // Allow single/two-character typos for words longer than 3 characters
+      if (term.length >= 4) {
+        let diff = Math.abs(target.length - term.length);
+        if (diff <= 2) {
+          let mismatches = 0;
+          let i = 0, j = 0;
+          while (i < target.length && j < term.length) {
+            if (target[i] !== term[j]) {
+              mismatches++;
+              if (mismatches > 2) break;
+              if (target.length > term.length) i++;
+              else if (term.length > target.length) j++;
+              else { i++; j++; }
+            } else {
+              i++; j++;
+            }
+          }
+          if (mismatches <= 2) return true;
+        }
+      }
+      return false;
+    };
+
     return distinctNames.filter((name) => {
       const nLower = name.toLowerCase();
-      if (nLower.includes(qLower)) return true;
-      return tokens.some((t) => nLower.includes(t));
+      if (isFuzzyMatch(nLower, qLower)) return true;
+      const nameWords = nLower.split(/\s+/);
+      return tokens.some((t) => nameWords.some((w) => isFuzzyMatch(w, t)));
     });
   }
 }

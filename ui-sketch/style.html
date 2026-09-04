@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RxBridge LK — Sri Lanka Smart Medical Shortage Engine</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: { rx: { blue:'#1e40af', green:'#10b981', amber:'#f59e0b', red:'#ef4444' } },
+      fontFamily: {
+        display: ['Sora','sans-serif'],
+        sans: ['"Instrument Sans"','sans-serif'],
+        mono: ['"IBM Plex Mono"','monospace']
+      },
+      boxShadow: {
+        card:'0 1px 2px rgba(15,23,42,.04), 0 2px 6px -1px rgba(15,23,42,.06)',
+        lift:'0 14px 28px -10px rgba(30,64,175,.16), 0 4px 10px -4px rgba(15,23,42,.08)',
+        pop:'0 24px 64px -16px rgba(15,23,42,.3)'
+      }
+    }
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  ::selection{background:#1e40af;color:#fff}
+  .hero-dots{background-image:radial-gradient(rgba(30,64,175,.08) 1.2px, transparent 1.2px);background-size:22px 22px}
+  .scroll-slim::-webkit-scrollbar{width:6px;height:6px}
+  .scroll-slim::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
+  .scroll-slim::-webkit-scrollbar-track{background:transparent}
+  .no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .no-spin{-moz-appearance:textfield}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes popIn{0%{opacity:0;transform:scale(.8)}70%{transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+  @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes scanY{0%,100%{top:12%}50%{top:86%}}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}70%{box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+  @keyframes redPulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}70%{box-shadow:0 0 0 7px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+  @keyframes shimmerMove{100%{transform:translateX(100%)}}
+  @keyframes barShrink{from{width:100%}to{width:0%}}
+  @keyframes dropin{0%{transform:translateY(-16px) scale(.5);opacity:0}60%{transform:translateY(3px) scale(1.12);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+  @keyframes newRing{0%{box-shadow:0 0 0 0 rgba(30,64,175,.3)}100%{box-shadow:0 0 0 12px rgba(30,64,175,0)}}
+  @keyframes bigCheck{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+  @keyframes drawCheck{to{stroke-dashoffset:0}}
+
+  .anim-fadeUp{animation:fadeUp .5s cubic-bezier(.21,.9,.35,1) both}
+  .anim-fadeIn{animation:fadeIn .25s ease both}
+  .anim-popIn{animation:popIn .4s cubic-bezier(.21,.9,.35,1) both}
+  .anim-toastIn{animation:toastIn .35s cubic-bezier(.21,.9,.35,1) both}
+  .anim-modalIn{animation:modalIn .32s cubic-bezier(.21,.9,.35,1) both}
+  .anim-scanY{animation:scanY 1.5s ease-in-out infinite}
+  .anim-live{animation:livePulse 2s ease-out infinite}
+  .anim-red{animation:redPulse 1.8s ease-out infinite}
+  .anim-newRing{animation:newRing 1.8s ease-out infinite}
+  .anim-bigCheck{animation:bigCheck .55s cubic-bezier(.21,.9,.35,1) both}
+  .shimmer{position:relative;overflow:hidden}
+  .shimmer::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(248,250,252,.85),transparent);animation:shimmerMove 1.4s infinite}
+  .scanline{position:absolute;left:10px;right:10px;height:2px;background:#10b981;box-shadow:0 0 12px 2px rgba(16,185,129,.55);border-radius:2px;z-index:5}
+
+  /* Leaflet theming */
+  .leaflet-container{font-family:'Instrument Sans',sans-serif;background:#e8eef4}
+  .leaflet-popup-content-wrapper{border-radius:14px;box-shadow:0 12px 32px -8px rgba(15,23,42,.28)}
+  .leaflet-popup-content{margin:12px 14px;line-height:1.35}
+  .leaflet-bar{border:none!important;box-shadow:0 4px 12px -2px rgba(15,23,42,.18)!important;overflow:hidden;border-radius:10px!important}
+  .leaflet-bar a{border:none!important;color:#334155!important}
+  .leaflet-control-attribution{font-size:9px;background:rgba(255,255,255,.75)!important}
+  .rx-pin{background:transparent;border:none}
+  .rx-pin>span{display:block;width:20px;height:20px;border-radius:50%;background:#fff;border:5px solid var(--c);box-shadow:0 2px 8px rgba(2,6,23,.35);transition:transform .18s ease;cursor:pointer;animation:dropin .45s cubic-bezier(.21,.9,.35,1) both}
+  .rx-pin>span:hover{transform:scale(1.35)}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const {useState, useEffect, useRef, useMemo, useCallback} = React;
+
+/* ============================================================
+   ICON SYSTEM — Lucide-style inline SVG strokes
+   ============================================================ */
+const ICONS = {
+  search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>,
+  mapPin: <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>,
+  phone: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>,
+  camera: <><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>,
+  upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></>,
+  x: <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
+  check: <path d="M20 6 9 17l-5-5"/>,
+  checkCheck: <><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></>,
+  clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+  alert: <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>,
+  package: <><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>,
+  pill: <><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></>,
+  bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+  chevronDown: <path d="m6 9 6 6 6-6"/>,
+  sliders: <><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></>,
+  radio: <><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></>,
+  sparkles: <><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></>,
+  fileText: <><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></>,
+  arrowRight: <><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>,
+  plus: <><path d="M5 12h14"/><path d="M12 5v14"/></>,
+  minus: <path d="M5 12h14"/>,
+  shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></>,
+  siren: <><path d="M7 18v-6a5 5 0 0 1 10 0v6"/><path d="M5 21h14"/><path d="M12 3v1"/><path d="m5.6 5.6.7.7"/><path d="m18.4 5.6-.7.7"/></>,
+  store: <><path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></>,
+  refresh: <><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></>,
+  inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></>,
+  info: <><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>,
+  navigation: <path d="m3 11 19-9-9 19-2-8-8-2z"/>,
+  timer: <><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></>,
+  user: <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+  mail: <><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></>,
+  lock: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+  building: <><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M8 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M16 14h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/></>,
+  idCard: <><path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/></>,
+  eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
+  eyeOff: <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></>,
+  locate: <><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></>,
+  power: <><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></>,
+};
+function Icon({name, size=18, className='', strokeWidth=2}){
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
+      className={className} aria-hidden="true">{ICONS[name]}</svg>
+  );
+}
+
+/* ============================================================
+   DATA — realistic Sri Lankan mock network
+   ============================================================ */
+const STATUS = {
+  in:  {id:'in',  label:'In Stock',     hex:'#10b981', dot:'bg-emerald-500', pill:'bg-emerald-50 text-emerald-700 border-emerald-200', seg:'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300/70 shadow-sm', tint:'bg-emerald-50 text-emerald-600'},
+  low: {id:'low', label:'Low Stock',    hex:'#f59e0b', dot:'bg-amber-500',   pill:'bg-amber-50 text-amber-700 border-amber-200',     seg:'bg-amber-100 text-amber-700 ring-1 ring-amber-300/70 shadow-sm',   tint:'bg-amber-50 text-amber-600'},
+  out: {id:'out', label:'Out of Stock', hex:'#ef4444', dot:'bg-red-500',     pill:'bg-red-50 text-red-600 border-red-200',           seg:'bg-red-100 text-red-600 ring-1 ring-red-300/70 shadow-sm',         tint:'bg-red-50 text-red-500'},
+};
+const SEV = {in:0, low:1, out:2};
+
+const MEDICINES = [
+  {key:'panadol',      name:'Panadol',            strength:'500mg',  gener:'Paracetamol',    alts:['Panadeine','Calpol','Tylenol']},
+  {key:'amoxicillin',  name:'Amoxicillin',        strength:'250mg',  gener:'Antibiotic',     alts:['Clamoxyl','Moxacil','Novamox']},
+  {key:'metformin',    name:'Metformin',          strength:'500mg',  gener:'Antidiabetic',   alts:['Glucophage','Glycomet SR']},
+  {key:'salbutamol',   name:'Salbutamol Inhaler', strength:'100mcg', gener:'Bronchodilator', alts:['Ventolin','Asthalin HFA']},
+  {key:'atorvastatin', name:'Atorvastatin',       strength:'10mg',   gener:'Statin',         alts:['Lipitor','Atorva']},
+  {key:'omeprazole',   name:'Omeprazole',         strength:'20mg',   gener:'PPI',            alts:['Losec','Omez']},
+  {key:'amlodipine',   name:'Amlodipine',         strength:'5mg',    gener:'Antihypertensive',alts:['Norvasc','Amlong']},
+  {key:'insulin',      name:'Insulin Mixtard',    strength:'30/70',  gener:'Antidiabetic',   alts:['Humulin 30/70','Novomix 30']},
+  {key:'montelukast',  name:'Montelukast',        strength:'10mg',   gener:'Anti-asthmatic', alts:['Singulair','Montair']},
+  {key:'levothyroxine',name:'Levothyroxine',      strength:'50mcg',  gener:'Thyroid',        alts:['Eltroxin','Thyronorm']},
+];
+
+const DISTRICTS = [
+  {name:'Colombo',      lat:6.9010, lng:79.8536, zoom:12, partners:6},
+  {name:'Kandy',        lat:7.2906, lng:80.6337, zoom:13, partners:3},
+  {name:'Galle',        lat:6.0535, lng:80.2210, zoom:13, partners:3},
+  {name:'Jaffna',       lat:9.6615, lng:80.0255, zoom:13, partners:2},
+  {name:'Gampaha',      lat:7.0917, lng:79.9999, zoom:13, partners:0},
+  {name:'Negombo',      lat:7.2083, lng:79.8358, zoom:13, partners:0},
+  {name:'Kurunegala',   lat:7.4863, lng:80.3623, zoom:13, partners:0},
+  {name:'Matara',       lat:5.9485, lng:80.5353, zoom:13, partners:0},
+  {name:'Anuradhapura', lat:8.3114, lng:80.4037, zoom:13, partners:0},
+  {name:'Batticaloa',   lat:7.7170, lng:81.7000, zoom:13, partners:0},
+];
+const AUTH_DISTRICTS = ['Colombo','Kandy','Galle','Jaffna'];
+
+const PHARMACIES = [
+  {id:'hg1', name:'HealthGuard Pharmacy',      city:'Bambalapitiya', district:'Colombo', lat:6.8917, lng:79.8558, phone:'+94 11 258 7463', open:'10:00 PM', dist:1.2, updated:'10m'},
+  {id:'st2', name:'Sethma Hospital Pharmacy',  city:'Bambalapitiya', district:'Colombo', lat:6.8873, lng:79.8613, phone:'+94 11 259 4471', open:'9:30 PM',  dist:1.8, updated:'6m'},
+  {id:'hm5', name:'Hemas Wellness Outlet',     city:'Wellawatte',    district:'Colombo', lat:6.8742, lng:79.8609, phone:'+94 11 452 8811', open:'10:00 PM', dist:2.6, updated:'12m'},
+  {id:'os3', name:'Osusala City Centre',       city:'Colombo 07',    district:'Colombo', lat:6.9147, lng:79.8637, phone:'+94 11 269 3325', open:'8:00 PM',  dist:3.4, updated:'24m'},
+  {id:'cg6', name:'Cargills Pharmacy',         city:'Colpetty',      district:'Colombo', lat:6.9009, lng:79.8493, phone:'+94 11 214 0114', open:'9:00 PM',  dist:3.9, updated:'35m'},
+  {id:'nw4', name:'Nawaloka Pharmacy',         city:'Colombo 02',    district:'Colombo', lat:6.9190, lng:79.8480, phone:'+94 11 234 5560', open:'9:00 PM',  dist:4.1, updated:'1h'},
+  {id:'kd1', name:'Lanka Apothecary',          city:'Kandy',         district:'Kandy',   lat:7.2936, lng:80.6392, phone:'+94 81 220 3318', open:'9:00 PM',  dist:0.8, updated:'8m'},
+  {id:'kd2', name:'Gunasekara Pharmacy',       city:'Kandy',         district:'Kandy',   lat:7.2863, lng:80.6245, phone:'+94 81 223 4502', open:'8:30 PM',  dist:1.5, updated:'20m'},
+  {id:'kd3', name:'Suwasevana Pharma',         city:'Peradeniya',    district:'Kandy',   lat:7.2599, lng:80.5977, phone:'+94 81 238 8120', open:'7:30 PM',  dist:4.6, updated:'45m'},
+  {id:'gl1', name:'Fort Pharmacy',             city:'Galle Fort',    district:'Galle',   lat:6.0271, lng:80.2168, phone:'+94 91 224 5590', open:'9:00 PM',  dist:1.1, updated:'5m'},
+  {id:'gl2', name:'Karapitiya MedCare',        city:'Karapitiya',    district:'Galle',   lat:6.0662, lng:80.2199, phone:'+94 91 223 1770', open:'10:00 PM', dist:2.3, updated:'18m'},
+  {id:'gl3', name:'Southern Wellness Chemist', city:'Dadalla',       district:'Galle',   lat:6.0418, lng:80.2463, phone:'+94 91 228 3364', open:'8:00 PM',  dist:3.0, updated:'52m'},
+  {id:'jf1', name:'Nallur Medicals',           city:'Nallur',        district:'Jaffna',  lat:9.6667, lng:80.0247, phone:'+94 21 222 8847', open:'8:00 PM',  dist:0.9, updated:'9m'},
+  {id:'jf2', name:'Hospital Road Pharmacy',    city:'Jaffna',        district:'Jaffna',  lat:9.6581, lng:80.0157, phone:'+94 21 221 4466', open:'9:30 PM',  dist:1.6, updated:'31m'},
+];
+
+const STOCK_OVERRIDES = {
+  hg1:{'amoxicillin 250mg':'in','panadol 500mg':'in'},
+  st2:{'amoxicillin 250mg':'low'},
+  hm5:{'amoxicillin 250mg':'low'},
+  os3:{'amoxicillin 250mg':'out'},
+  cg6:{'amoxicillin 250mg':'out'},
+  nw4:{'amoxicillin 250mg':'in'},
+};
+
+const INVENTORY = [
+  {id:'i1', name:'Panadol',            strength:'500mg',  form:'Tablets',   shelf:'A-12', ingredient:'Paracetamol',            def:'in',  updated:'12m'},
+  {id:'i2', name:'Amoxicillin',        strength:'250mg',  form:'Capsules',  shelf:'B-04', ingredient:'Amoxicillin trihydrate', def:'low', updated:'34m'},
+  {id:'i3', name:'Metformin',          strength:'500mg',  form:'Tablets',   shelf:'B-11', ingredient:'Metformin HCl',          def:'in',  updated:'1h'},
+  {id:'i4', name:'Salbutamol Inhaler', strength:'100mcg', form:'Inhaler',   shelf:'C-02', ingredient:'Salbutamol sulphate',    def:'low', updated:'22m'},
+  {id:'i5', name:'Atorvastatin',       strength:'10mg',   form:'Tablets',   shelf:'B-07', ingredient:'Atorvastatin calcium',   def:'out', updated:'3h'},
+  {id:'i6', name:'Omeprazole',         strength:'20mg',   form:'Capsules',  shelf:'A-05', ingredient:'Omeprazole',             def:'in',  updated:'18m'},
+  {id:'i7', name:'Insulin Mixtard',    strength:'30/70',  form:'Injection', shelf:'FR-01',ingredient:'Human insulin 30/70',    def:'out', updated:'2h'},
+  {id:'i8', name:'ORS Sachets',        strength:'20.5g',  form:'Powder',    shelf:'D-09', ingredient:'NaCl + Glucose (WHO)',   def:'in',  updated:'9m'},
+];
+
+const TICKER = [
+  {t:'Salbutamol Inhaler 100mcg', d:'Kandy District',      s:'low', time:'4 min ago'},
+  {t:'Insulin Mixtard 30/70',     d:'Colombo District',    s:'out', time:'12 min ago'},
+  {t:'Levothyroxine 50mcg',       d:'Galle District',      s:'low', time:'18 min ago'},
+  {t:'Amoxicillin 250mg',         d:'Jaffna District',     s:'in',  time:'24 min ago'},
+  {t:'Omeprazole 20mg',           d:'Kurunegala District', s:'in',  time:'31 min ago'},
+];
+
+const PICKUP_TIMES = ['Today · 3:00 – 4:00 PM','Today · 4:00 – 5:00 PM','Today · 5:00 – 6:00 PM','Tomorrow · 9:00 – 10:00 AM','Tomorrow · 10:00 – 11:00 AM'];
+
+const PHARMACY_REGISTRY = {
+  'NMRA/PH/2026/0147': {name:'Bambalapitiya Community Pharmacy', city:'Bambalapitiya', district:'Colombo'},
+  'NMRA/PH/2025/2210': {name:'Lanka Apothecary',                 city:'Kandy',         district:'Kandy'},
+  'NMRA/PH/2024/0831': {name:'Fort Pharmacy',                    city:'Galle Fort',    district:'Galle'},
+};
+
+const SEED_QUEUE = [
+  {id:'r1', patient:'Nimal Fernando',   phone:'+94 77 862 4415', med:'Metformin 500mg',           qty:2, time:'Today · 4:00 – 5:00 PM', status:'pending',   requested:'8 min ago',  isNew:false},
+  {id:'r2', patient:'Kumari Silva',     phone:'+94 71 550 9903', med:'Salbutamol Inhaler 100mcg', qty:1, time:'Today · 5:00 – 6:00 PM', status:'pending',   requested:'15 min ago', isNew:false},
+  {id:'r3', patient:'Ruwan Jayasuriya', phone:'+94 76 313 2287', med:'Omeprazole 20mg',           qty:1, time:'Today · 2:00 – 3:00 PM', status:'confirmed', requested:'42 min ago', isNew:false},
+];
+
+const DEFAULT_COORDS = {lat:6.9271, lng:79.8612};
+
+/* ============================================================
+   HELPERS & VALIDATION
+   ============================================================ */
+const hash = s => { let h=7; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return h; };
+const digitsOf = v => v.replace(/[\s-]/g,'');
+
+const RX_PHONE = /^(?:\+94|0)7\d{8}$/;
+const RX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const RX_NMRA  = /^NMRA\/PH\/\d{4}\/\d{4}$/;
+const RX_SLMC  = /^SLMC\/\d{5}$/;
+
+function statusOf(phId, medName, branchStock){
+  const k = medName.toLowerCase();
+  if (phId==='hg1' && branchStock && branchStock[k]) return branchStock[k];
+  const ov = STOCK_OVERRIDES[phId];
+  if (ov && ov[k]) return ov[k];
+  return hash(phId+'::'+k)%10 < 6 ? 'in' : (hash(phId+'::'+k)%10 < 8 ? 'low' : 'out');
+}
+
+function buildResults(query, districtName, branchStock){
+  const q = query.toLowerCase();
+  const medEntry = MEDICINES.find(m => q.includes(m.name.toLowerCase()) || m.name.toLowerCase().includes(q));
+  const display = medEntry ? `${medEntry.name} ${medEntry.strength}` : query;
+  const altName = medEntry ? medEntry.alts[0] : null;
+
+  const list = PHARMACIES
+    .filter(p => p.district === districtName)
+    .map(p => ({...p, status: statusOf(p.id, display, branchStock), med: display}))
+    .sort((a,b) => a.dist - b.dist);
+
+  if (altName){
+    list.filter(r => r.status==='out').forEach(r => {
+      const cands = PHARMACIES
+        .filter(p => p.id!==r.id && p.district===districtName)
+        .map(p => ({...p, status: statusOf(p.id, altName, branchStock)}))
+        .sort((a,b) => a.dist - b.dist);
+      const good = cands.find(c=>c.status==='in') || cands.find(c=>c.status==='low');
+      r.altName = altName;
+      r.alt = good ? {name: good.name, dist: good.dist} : null;
+    });
+  }
+  return {display, list};
+}
+
+function validateAuth(form, role, mode){
+  const e = {};
+  const pw = form.password;
+  if (role === 'patient'){
+    if (mode==='signup' && form.name.trim().length < 3) e.name = "Enter the patient's full name (min 3 characters).";
+    if (!RX_EMAIL.test(form.identifier.trim()) && !RX_PHONE.test(digitsOf(form.identifier)))
+      e.identifier = 'Enter a valid email or Sri Lankan mobile (e.g. +94 77 862 4415).';
+    if (pw.length < 8) e.password = 'Password must be at least 8 characters.';
+    if (mode==='signup' && pw !== form.confirm) e.confirm = 'Passwords do not match.';
+  } else {
+    if (mode === 'signup'){
+      if (form.phName.trim().length < 3) e.phName = 'Enter the registered pharmacy name.';
+      if (!form.district) e.district = 'Select the registration district.';
+      if (form.city.trim().length < 2) e.city = 'Enter the city or area (e.g. Bambalapitiya).';
+      if (!RX_NMRA.test(form.nmra.trim().toUpperCase())) e.nmra = 'Invalid format — use NMRA/PH/YYYY/NNNN (e.g. NMRA/PH/2026/0147).';
+      if (!RX_SLMC.test(form.slmc.trim().toUpperCase())) e.slmc = 'Invalid format — use SLMC/NNNNN (e.g. SLMC/19842).';
+      if (pw.length < 8) e.password = 'Password must be at least 8 characters.';
+      if (pw !== form.confirm) e.confirm = 'Passwords do not match.';
+    } else {
+      if (!RX_NMRA.test(form.identifier.trim().toUpperCase())) e.identifier = 'Enter your NMRA licence number (NMRA/PH/YYYY/NNNN).';
+      if (!pw) e.password = 'Enter your password.';
+    }
+  }
+  return e;
+}
+
+const nameFromIdentifier = v => {
+  if (/@/.test(v)){
+    const local = v.split('@')[0].replace(/[._-]+/g,' ').trim();
+    return local ? local.split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ') : 'Patient';
+  }
+  return 'Valued Patient';
+};
+
+function useClickOutside(ref, handler){
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) handler(); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+}
+
+/* ============================================================
+   SHARED PRIMITIVES
+   ============================================================ */
+function LogoMark({size=38}){
+  return (
+    <span className="grid place-items-center rounded-xl bg-rx-blue shadow-[0_8px_18px_-6px_rgba(30,64,175,.55)] shrink-0" style={{width:size, height:size}}>
+      <svg width={size*.64} height={size*.64} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3.5v8M8 7.5h8" stroke="#ffffff" strokeWidth="2.6"/>
+        <path d="M3.5 18.5c2.8-3.2 5.6-4.8 8.5-4.8s5.7 1.6 8.5 4.8" stroke="#34d399" strokeWidth="2.4"/>
+      </svg>
+    </span>
+  );
+}
+
+function StatusPill({s, updated, units}){
+  return (
+    <span className={`inline-flex items-center gap-1.5 shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${s.pill}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${s.id==='in' ? 'anim-live' : ''}`}/>
+      {s.id==='low' ? `Low Stock — ${units} units left` : `${s.label} — Updated ${updated} ago`}
+    </span>
+  );
+}
+
+function Field({label, htmlFor, error, hint, children}){
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">{label}</label>
+      {children}
+      {error
+        ? <p className="mt-1.5 flex items-start gap-1 text-[11px] font-semibold text-red-500"><Icon name="alert" size={11} className="mt-px shrink-0"/>{error}</p>
+        : hint ? <p className="mt-1.5 text-[11px] text-slate-400 leading-snug">{hint}</p> : null}
+    </div>
+  );
+}
+
+function TextInput({id, icon, error, right, ...props}){
+  return (
+    <div className="relative">
+      {icon && <Icon name={icon} size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>}
+      <input id={id} {...props}
+        className={`w-full rounded-xl border py-2.5 ${icon?'pl-10':'pl-3.5'} ${right?'pr-10':'pr-3.5'} text-sm font-medium outline-none transition duration-150 ${
+          error
+            ? 'border-red-300 bg-red-50/50 text-red-700 placeholder:text-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100'
+            : 'border-slate-200 bg-slate-50/60 text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:border-rx-blue focus:bg-white focus:ring-4 focus:ring-rx-blue/10'}`}/>
+      {right}
+    </div>
+  );
+}
+
+function PasswordInput({id, value, onChange, onBlur, error, placeholder, showStrength}){
+  const [show, setShow] = useState(false);
+  const score = useMemo(() => {
+    let s = 0;
+    if (value.length >= 8) s++;
+    if (/\d/.test(value)) s++;
+    if (/[A-Z]/.test(value)) s++;
+    if (/[^A-Za-z0-9]/.test(value) || value.length >= 12) s++;
+    return Math.min(4, s);
+  }, [value]);
+  const tone = score<=1 ? {bar:'bg-red-500', txt:'text-red-500', label:'Weak'}
+             : score===2 ? {bar:'bg-amber-500', txt:'text-amber-600', label:'Fair'}
+             : score===3 ? {bar:'bg-emerald-400', txt:'text-emerald-600', label:'Good'}
+             : {bar:'bg-emerald-500', txt:'text-emerald-600', label:'Strong'};
+  return (
+    <div>
+      <div className="relative">
+        <Icon name="lock" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+        <input id={id} type={show?'text':'password'} value={value} onChange={onChange} onBlur={onBlur}
+          placeholder={placeholder} autoComplete="new-password"
+          className={`w-full rounded-xl border py-2.5 pl-10 pr-10 text-sm font-medium outline-none transition duration-150 ${
+            error
+              ? 'border-red-300 bg-red-50/50 text-red-700 placeholder:text-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100'
+              : 'border-slate-200 bg-slate-50/60 text-slate-800 placeholder:text-slate-400 placeholder:font-normal focus:border-rx-blue focus:bg-white focus:ring-4 focus:ring-rx-blue/10'}`}/>
+        <button type="button" onClick={()=>setShow(s=>!s)} aria-label={show?'Hide password':'Show password'}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+          <Icon name={show?'eyeOff':'eye'} size={15}/>
+        </button>
+      </div>
+      {showStrength && value.length > 0 && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex gap-1 flex-1">
+            {[1,2,3,4].map(i => (
+              <span key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i<=score ? tone.bar : 'bg-slate-200'}`}/>
+            ))}
+          </div>
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${tone.txt}`}>{tone.label}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToastHost({toasts, dismiss}){
+  const map = {
+    success:{icon:'checkCheck', box:'bg-emerald-50 text-emerald-600 border-emerald-200', bar:'bg-emerald-500'},
+    error:  {icon:'alert',      box:'bg-red-50 text-red-500 border-red-200',             bar:'bg-red-500'},
+    info:   {icon:'info',       box:'bg-blue-50 text-rx-blue border-blue-200',           bar:'bg-rx-blue'},
+  };
+  return (
+    <div className="fixed z-[90] bottom-4 inset-x-4 sm:inset-x-auto sm:right-5 sm:bottom-5 flex flex-col gap-2.5 pointer-events-none">
+      {toasts.map(t => {
+        const st = map[t.type] || map.info;
+        return (
+          <div key={t.id} className="anim-toastIn pointer-events-auto relative overflow-hidden flex items-start gap-3 rounded-xl border border-slate-200 bg-white pl-3.5 pr-9 py-3 shadow-pop max-w-sm w-full sm:w-[380px]">
+            <span className={`grid place-items-center w-7 h-7 rounded-lg shrink-0 border ${st.box}`}><Icon name={st.icon} size={14}/></span>
+            <p className="text-[13px] leading-snug text-slate-700 font-medium">{t.msg}</p>
+            <button onClick={()=>dismiss(t.id)} aria-label="Dismiss" className="absolute right-2 top-2.5 text-slate-300 hover:text-slate-500 transition-colors"><Icon name="x" size={14}/></button>
+            <span className={`absolute bottom-0 left-0 h-[3px] ${st.bar}`} style={{animation:'barShrink 4.2s linear forwards'}}/>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+   HEADER — logo, NMRA/SLMC badge, nav, toggle, auth, hotline
+   ============================================================ */
+function NavLink({label, onClick}){
+  return (
+    <button onClick={onClick}
+      className="group relative px-3 py-2 text-[13px] font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+      {label}
+      <span className="absolute left-3 right-3 bottom-0.5 h-0.5 rounded-full bg-rx-blue origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-200"/>
+    </button>
+  );
+}
+
+function ViewToggle({view, onChange}){
+  const idx = view==='patient' ? 0 : 1;
+  const tabs = [
+    {id:'patient',    label:'Patient Search Portal', short:'Patient Search', icon:'search'},
+    {id:'pharmacist', label:'Pharmacist Portal',     short:'Pharmacist',     icon:'store'},
+  ];
+  return (
+    <div className="w-full sm:w-auto" role="tablist" aria-label="Switch portal">
+      <div className="relative grid grid-cols-2 rounded-xl border border-slate-200/90 bg-slate-100/80 p-1">
+        <span aria-hidden="true"
+          className="absolute inset-y-1 left-1 rounded-lg bg-white shadow-sm ring-1 ring-slate-900/5 transition-transform duration-300 ease-out"
+          style={{width:'calc(50% - 4px)', transform: idx ? 'translateX(100%)' : 'translateX(0)'}}/>
+        {tabs.map(t => {
+          const active = view===t.id;
+          return (
+            <button key={t.id} role="tab" aria-selected={active} onClick={()=>onChange(t.id)}
+              className={`relative z-10 flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors duration-200 ${active ? 'text-rx-blue' : 'text-slate-500 hover:text-slate-800'}`}>
+              <Icon name={t.icon} size={15}/>
+              <span className="hidden lg:inline">{t.label}</span>
+              <span className="lg:hidden">{t.short}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AuthArea({auth, onOpen, onSignOut}){
+  if (auth){
+    const name = auth.role==='pharmacy' ? auth.phName : auth.name;
+    const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    return (
+      <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white pl-1.5 pr-1 py-1 shadow-sm">
+        <span className={`grid place-items-center w-7 h-7 rounded-lg text-[11px] font-bold text-white shrink-0 ${auth.role==='pharmacy' ? 'bg-emerald-500' : 'bg-rx-blue'}`}>
+          {auth.role==='pharmacy' ? <Icon name="store" size={13}/> : initials}
+        </span>
+        <span className="hidden sm:block leading-tight pr-1 max-w-[130px]">
+          <span className="block text-[11px] font-bold text-slate-700 truncate">{name}</span>
+          <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">{auth.role==='pharmacy' ? 'Pharmacy Partner' : 'Patient Account'}</span>
+        </span>
+        <button onClick={onSignOut} title="Sign out" aria-label="Sign out"
+          className="grid place-items-center w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition">
+          <Icon name="power" size={14}/>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button onClick={()=>onOpen('patient')}
+      className="inline-flex items-center gap-2 rounded-xl bg-rx-blue px-3.5 py-2.5 text-[13px] font-semibold text-white shadow-[0_8px_16px_-8px_rgba(30,64,175,.6)] hover:bg-blue-800 active:scale-[.98] transition-all duration-150">
+      <Icon name="user" size={14}/>Sign In<span className="hidden lg:inline">&nbsp;/ Register</span>
+    </button>
+  );
+}
+
+function HotlineBadge(){
+  return (
+    <a href="tel:1990"
+      className="group flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50/80 hover:bg-red-100 hover:border-red-300 px-2.5 py-1.5 transition-all duration-200 hover:-translate-y-px hover:shadow-[0_8px_16px_-8px_rgba(239,68,68,.4)]">
+      <span className="anim-red grid place-items-center w-7 h-7 rounded-lg bg-red-500 text-white shrink-0">
+        <Icon name="siren" size={14}/>
+      </span>
+      <span className="hidden md:block leading-tight text-left">
+        <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-red-400">Emergency Hotline</span>
+        <span className="block text-[13px] font-bold text-red-600 font-display leading-none mt-0.5">1990 <span className="font-semibold text-red-500/90">· Suwa Seriya</span></span>
+      </span>
+      <span className="md:hidden text-sm font-bold text-red-600 font-display">1990</span>
+    </a>
+  );
+}
+
+function Header({view, setView, auth, onOpenAuth, onSignOut, scrollToId}){
+  return (
+    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2.5">
+        <div className="flex items-center gap-3 mr-auto">
+          <LogoMark/>
+          <div className="leading-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="font-display font-bold text-slate-900 text-[17px] tracking-tight">RxBridge</span>
+              <span className="text-[10px] font-mono font-bold text-rx-blue bg-rx-blue/10 border border-rx-blue/20 rounded px-1 py-px">LK</span>
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 anim-live"/>
+              <span className="text-[11px] font-semibold text-emerald-600">NMRA &amp; SLMC Verified Network</span>
+              <span className="hidden sm:inline text-[10px] font-mono text-slate-400">· 2,431 nodes</span>
+            </div>
+          </div>
+        </div>
+
+        <nav className="hidden xl:flex items-center mr-auto" aria-label="Primary">
+          <NavLink label="Find Medicines" onClick={()=>{ setView('patient'); scrollToId('rx-search'); }}/>
+          <NavLink label="Shortage Radar" onClick={()=>{ setView('patient'); scrollToId('rx-hero'); }}/>
+          <NavLink label="For Pharmacies" onClick={()=>onOpenAuth('pharmacy')}/>
+        </nav>
+
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2.5 w-full sm:w-auto">
+          <ViewToggle view={view} onChange={setView}/>
+          <AuthArea auth={auth} onOpen={onOpenAuth} onSignOut={onSignOut}/>
+          <HotlineBadge/>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ============================================================
+   DRAGGABLE PIN PICKER (Auth — Pharmacy Partner onboarding)
+   ============================================================ */
+function PinPicker({initial, onChange, pushToast}){
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const mkRef = useRef(null);
+  const [pos, setPos] = useState(initial);
+
+  useEffect(() => {
+    const map = L.map(elRef.current, {zoomControl:false, attributionControl:false, scrollWheelZoom:false})
+      .setView([initial.lat, initial.lng], 14);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom:19}).addTo(map);
+    const mk = L.marker([initial.lat, initial.lng], {
+      draggable:true,
+      icon: L.divIcon({className:'rx-pin', html:'<span style="--c:#1e40af"></span>', iconSize:[22,22], iconAnchor:[11,11]})
+    }).addTo(map);
+    const commit = p => {
+      const v = {lat:+p.lat.toFixed(5), lng:+p.lng.toFixed(5)};
+      setPos(v); onChange(v);
+    };
+    mk.on('dragend', () => commit(mk.getLatLng()));
+    map.on('click', e => { mk.setLatLng(e.latlng); commit(e.latlng); });
+    mapRef.current = map; mkRef.current = mk;
+    const t1 = setTimeout(()=>map.invalidateSize(), 60);
+    const t2 = setTimeout(()=>map.invalidateSize(), 350);
+    return () => { clearTimeout(t1); clearTimeout(t2); map.remove(); };
+  }, []);
+
+  const locate = () => {
+    if (!navigator.geolocation){ pushToast('Geolocation unavailable — drag the pin instead.', 'info'); return; }
+    pushToast('Requesting your current location…', 'info');
+    navigator.geolocation.getCurrentPosition(
+      p => {
+        const v = {lat:+p.coords.latitude.toFixed(5), lng:+p.coords.longitude.toFixed(5)};
+        mapRef.current.setView([v.lat, v.lng], 15);
+        mkRef.current.setLatLng([v.lat, v.lng]);
+        setPos(v); onChange(v);
+        pushToast('Storefront pin set to your current location.', 'success');
+      },
+      () => pushToast('Location permission denied — drag the pin to your storefront.', 'error'),
+      {timeout: 6000}
+    );
+  };
+
+  return (
+    <React.Fragment>
+      <div ref={elRef} className="w-full h-full"/>
+      <div className="absolute top-2 left-2 z-[500] pointer-events-none rounded-lg border border-slate-200 bg-white/90 backdrop-blur px-2.5 py-1 text-[10px] font-mono font-semibold text-slate-600 shadow-sm">
+        {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
+      </div>
+      <button type="button" onClick={locate}
+        className="absolute bottom-2 right-2 z-[500] inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:text-rx-blue hover:border-rx-blue/40 shadow-sm transition">
+        <Icon name="locate" size={12}/>Use my location
+      </button>
+    </React.Fragment>
+  );
+}
+
+/* ============================================================
+   AUTH MODAL — dual role, sign in / create account
+   ============================================================ */
+const EMPTY_AUTH_FORM = {name:'', identifier:'', password:'', confirm:'', phName:'', district:'', city:'', nmra:'', slmc:''};
+
+function AuthModal({presetRole, onClose, onAuth, pushToast}){
+  const [role, setRole] = useState(presetRole || 'patient');
+  const [mode, setMode] = useState('signin');
+  const [form, setForm] = useState(EMPTY_AUTH_FORM);
+  const [touched, setTouched] = useState({});
+  const [phase, setPhase] = useState('form'); // form | verifying | done
+  const [vStep, setVStep] = useState(0);
+  const [coords] = useState(DEFAULT_COORDS);
+  const [busy, setBusy] = useState(false);
+  const firstRef = useRef(null);
+
+  useEffect(() => {
+    if (firstRef.current) firstRef.current.focus();
+    const h = e => { if (e.key==='Escape') onClose(); };
+    window.addEventListener('keydown', h);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = ''; };
+  }, []);
+
+  const errors = useMemo(() => validateAuth(form, role, mode), [form, role, mode]);
+  const errFor = k => touched[k] ? errors[k] : null;
+  const touch = k => () => setTouched(t => ({...t, [k]:true}));
+  const set = k => e => setForm(f => ({...f, [k]: e.target.value}));
+
+  const STEPS = role==='pharmacy' ? [
+    {icon:'check',   t:'Validating application credentials'},
+    {icon:'shield',  t:'Cross-checking NMRA retail licence registry'},
+    {icon:'idCard',  t:'Verifying SLMC pharmacist registration'},
+    {icon:'mapPin',  t:'Registering store geofence coordinates'},
+  ] : [
+    {icon:'check',   t:'Creating your secure account'},
+    {icon:'mail',    t:'Verifying contact details'},
+    {icon:'radio',   t:'Syncing with the islandwide shortage engine'},
+  ];
+
+  useEffect(() => {
+    if (phase!=='verifying') return;
+    if (vStep < STEPS.length){
+      const t = setTimeout(()=>setVStep(s=>s+1), role==='pharmacy' ? 640 : 430);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(()=>setPhase('done'), 700);
+    return () => clearTimeout(t);
+  }, [phase, vStep, role]);
+
+  const switchRole = r => {
+    if (phase!=='form') return;
+    setRole(r);
+    setTouched({});
+    setForm(f => ({...f, identifier:''}));
+  };
+  const switchMode = m => { if (phase!=='form') return; setMode(m); setTouched({}); };
+
+  const onSubmit = e => {
+    e.preventDefault();
+    if (phase!=='form' || busy) return;
+    const all = {};
+    Object.keys(form).forEach(k => { all[k] = true; });
+    setTouched(all);
+    if (Object.keys(errors).length){
+      pushToast('Please fix the highlighted fields before continuing.', 'error');
+      return;
+    }
+    setBusy(true);
+    setTimeout(() => { setBusy(false); setVStep(0); setPhase('verifying'); }, 600);
+  };
+
+  const finishAuth = () => {
+    if (role === 'patient'){
+      const d = digitsOf(form.identifier);
+      const isPhone = RX_PHONE.test(d);
+      const name = (mode==='signup' && form.name.trim()) ? form.name.trim() : nameFromIdentifier(form.identifier);
+      onAuth({role:'patient', name, contact: form.identifier, phone: isPhone ? d : ''});
+    } else {
+      const lic = (mode==='signup' ? form.nmra : form.identifier).trim().toUpperCase();
+      const reg = PHARMACY_REGISTRY[lic];
+      onAuth({
+        role:'pharmacy',
+        phName:   mode==='signup' ? form.phName.trim() : (reg ? reg.name : 'Partner Community Pharmacy'),
+        district: mode==='signup' ? form.district     : (reg ? reg.district : 'Colombo'),
+        city:     mode==='signup' ? form.city.trim()  : (reg ? reg.city : 'Colombo'),
+        license:  lic,
+        slmc:     mode==='signup' ? form.slmc.trim().toUpperCase() : 'SLMC/10432',
+        coords,
+        verified: mode!=='signup',
+      });
+    }
+  };
+
+  const inputCls = 'w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-3.5 pr-3.5 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-rx-blue focus:bg-white focus:ring-4 focus:ring-rx-blue/10 transition cursor-pointer';
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-[3px] anim-fadeIn" onClick={onClose}/>
+      <div role="dialog" aria-modal="true" aria-label="Sign in or create account"
+        className={`relative w-full ${role==='pharmacy' ? 'sm:max-w-lg' : 'sm:max-w-md'} bg-white rounded-t-3xl sm:rounded-2xl shadow-pop anim-modalIn max-h-[92vh] overflow-y-auto scroll-slim`}>
+
+        {/* Modal header */}
+        <div className="p-5 pb-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <LogoMark size={40}/>
+              <div>
+                <h3 className="font-display font-bold text-slate-900 leading-tight">
+                  {role==='patient'
+                    ? (mode==='signin' ? 'Welcome back' : 'Join RxBridge LK')
+                    : (mode==='signin' ? 'Pharmacy Partner Sign In' : 'Pharmacy Partner Onboarding')}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {role==='patient' ? 'Search, scan & reserve medicines islandwide' : 'NMRA & SLMC verified onboarding in minutes'}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} aria-label="Close dialog"
+              className="grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0"><Icon name="x" size={16}/></button>
+          </div>
+
+          {/* Role segmented control */}
+          <div className="mt-4 relative grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-100/80 p-1" role="tablist" aria-label="Account role">
+            <span aria-hidden="true" className="absolute inset-y-1 left-1 rounded-lg bg-white shadow-sm ring-1 ring-slate-900/5 transition-transform duration-300 ease-out"
+              style={{width:'calc(50% - 4px)', transform: role==='pharmacy' ? 'translateX(100%)' : 'translateX(0)'}}/>
+            {[
+              {id:'patient',  icon:'user',     label:'Patient / Buyer'},
+              {id:'pharmacy', icon:'building', label:'Pharmacy Partner'},
+            ].map(t => (
+              <button key={t.id} type="button" role="tab" aria-selected={role===t.id} onClick={()=>switchRole(t.id)}
+                className={`relative z-10 flex items-center justify-center gap-2 rounded-lg py-2 text-[13px] font-semibold transition-colors duration-200 ${role===t.id ? 'text-rx-blue' : 'text-slate-500 hover:text-slate-800'}`}>
+                <Icon name={t.icon} size={15}/>{t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sign In / Create Account sub-toggle */}
+          <div className="mt-2.5 flex justify-center">
+            <div className="relative grid grid-cols-2 rounded-lg bg-slate-100 p-0.5 text-xs font-semibold" role="tablist" aria-label="Authentication mode">
+              <span aria-hidden="true" className="absolute inset-y-0.5 left-0.5 rounded-md bg-white shadow-sm transition-transform duration-250 ease-out"
+                style={{width:'calc(50% - 2px)', transform: mode==='signup' ? 'translateX(100%)' : 'translateX(0)'}}/>
+              {[{id:'signin', label:'Sign In'},{id:'signup', label:'Create Account'}].map(t => (
+                <button key={t.id} type="button" role="tab" aria-selected={mode===t.id} onClick={()=>switchMode(t.id)}
+                  className={`relative z-10 rounded-md px-5 py-1.5 transition-colors duration-200 ${mode===t.id ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ---------- FORM PHASE ---------- */}
+        {phase==='form' && (
+          <form onSubmit={onSubmit} noValidate className="p-5 grid gap-4">
+            {role==='patient' && mode==='signin' && (
+              <React.Fragment>
+                <Field label="Email or Mobile Number" htmlFor="au-id" error={errFor('identifier')}>
+                  <TextInput id="au-id" ref={firstRef} icon="mail" error={errFor('identifier')}
+                    value={form.identifier} onChange={set('identifier')} onBlur={touch('identifier')}
+                    placeholder="you@example.com or +94 77 862 4415"/>
+                </Field>
+                <Field label="Password" htmlFor="au-pw" error={errFor('password')}>
+                  <PasswordInput id="au-pw" value={form.password} onChange={set('password')} onBlur={touch('password')} error={errFor('password')} placeholder="Your password"/>
+                </Field>
+                <p className="text-[11px] text-slate-400 -mt-1">Demo tip — any valid email / +94 mobile with an 8+ character password works.</p>
+              </React.Fragment>
+            )}
+
+            {role==='patient' && mode==='signup' && (
+              <React.Fragment>
+                <Field label="Patient Full Name" htmlFor="au-name" error={errFor('name')}>
+                  <TextInput id="au-name" ref={firstRef} icon="user" error={errFor('name')}
+                    value={form.name} onChange={set('name')} onBlur={touch('name')} placeholder="e.g. Nimal Perera"/>
+                </Field>
+                <Field label="Email or Mobile Number" htmlFor="au-id2" error={errFor('identifier')} hint="We use this for reservation confirmations only.">
+                  <TextInput id="au-id2" icon="mail" error={errFor('identifier')}
+                    value={form.identifier} onChange={set('identifier')} onBlur={touch('identifier')}
+                    placeholder="you@example.com or +94 77 862 4415"/>
+                </Field>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="Password" htmlFor="au-pw2" error={errFor('password')}>
+                    <PasswordInput id="au-pw2" showStrength value={form.password} onChange={set('password')} onBlur={touch('password')} error={errFor('password')} placeholder="Min 8 characters"/>
+                  </Field>
+                  <Field label="Confirm Password" htmlFor="au-pwc" error={errFor('confirm')}>
+                    <PasswordInput id="au-pwc" value={form.confirm} onChange={set('confirm')} onBlur={touch('confirm')} error={errFor('confirm')} placeholder="Repeat password"/>
+                  </Field>
+                </div>
+              </React.Fragment>
+            )}
+
+            {role==='pharmacy' && mode==='signin' && (
+              <React.Fragment>
+                <Field label="NMRA Retail Licence No." htmlFor="au-lic" error={errFor('identifier')}>
+                  <TextInput id="au-lic" ref={firstRef} icon="fileText" error={errFor('identifier')}
+                    value={form.identifier} onChange={set('identifier')} onBlur={touch('identifier')}
+                    placeholder="NMRA/PH/2026/0147"/>
+                </Field>
+                <Field label="Password" htmlFor="au-pw3" error={errFor('password')}>
+                  <PasswordInput id="au-pw3" value={form.password} onChange={set('password')} onBlur={touch('password')} error={errFor('password')} placeholder="Your password"/>
+                </Field>
+                <p className="text-[11px] text-slate-400 -mt-1">Demo tip — sign in with licence <span className="font-mono font-semibold text-slate-500">NMRA/PH/2026/0147</span> + any password.</p>
+              </React.Fragment>
+            )}
+
+            {role==='pharmacy' && mode==='signup' && (
+              <React.Fragment>
+                <Field label="Registered Pharmacy Name" htmlFor="au-phn" error={errFor('phName')}>
+                  <TextInput id="au-phn" ref={firstRef} icon="building" error={errFor('phName')}
+                    value={form.phName} onChange={set('phName')} onBlur={touch('phName')} placeholder="e.g. Bambalapitiya Community Pharmacy"/>
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="District" htmlFor="au-dist" error={errFor('district')}>
+                    <div className="relative">
+                      <select id="au-dist" value={form.district} onChange={set('district')} onBlur={touch('district')}
+                        className={`${inputCls} appearance-none pr-9 ${form.district ? '' : 'text-slate-400 font-normal'}`}>
+                        <option value="" disabled>Select…</option>
+                        {AUTH_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <Icon name="chevronDown" size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                    </div>
+                  </Field>
+                  <Field label="City / Area" htmlFor="au-city" error={errFor('city')}>
+                    <TextInput id="au-city" icon="mapPin" error={errFor('city')}
+                      value={form.city} onChange={set('city')} onBlur={touch('city')} placeholder="e.g. Bambalapitiya"/>
+                  </Field>
+                </div>
+                <Field label="NMRA Retail Licence No." htmlFor="au-nmra" error={errFor('nmra')} hint="Printed on your retail drug licence — format NMRA/PH/YYYY/NNNN.">
+                  <TextInput id="au-nmra" icon="fileText" error={errFor('nmra')}
+                    value={form.nmra} onChange={set('nmra')} onBlur={touch('nmra')} placeholder="NMRA/PH/2026/XXXX"/>
+                </Field>
+                <Field label="SLMC Pharmacist Reg. No." htmlFor="au-slmc" error={errFor('slmc')} hint="Superintending pharmacist registration — format SLMC/NNNNN.">
+                  <TextInput id="au-slmc" icon="idCard" error={errFor('slmc')}
+                    value={form.slmc} onChange={set('slmc')} onBlur={touch('slmc')} placeholder="SLMC/XXXXX"/>
+                </Field>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="Password" htmlFor="au-pw4" error={errFor('password')}>
+                    <PasswordInput id="au-pw4" showStrength value={form.password} onChange={set('password')} onBlur={touch('password')} error={errFor('password')} placeholder="Min 8 characters"/>
+                  </Field>
+                  <Field label="Confirm Password" htmlFor="au-pwc4" error={errFor('confirm')}>
+                    <PasswordInput id="au-pwc4" value={form.confirm} onChange={set('confirm')} onBlur={touch('confirm')} error={errFor('confirm')} placeholder="Repeat password"/>
+                  </Field>
+                </div>
+
+                {/* Storefront pin */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Storefront Location Pin</label>
+                  <div className="relative h-44 rounded-xl overflow-hidden border border-slate-200 shadow-inner">
+                    <PinPicker initial={coords} onChange={()=>{}} pushToast={pushToast}/>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-400">Drag the pin (or tap the map) to set your exact storefront coordinates — used for patient distance estimates.</p>
+                </div>
+              </React.Fragment>
+            )}
+
+            <button type="submit" disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_-10px_rgba(30,64,175,.6)] hover:bg-blue-800 active:scale-[.99] transition-all duration-150 disabled:opacity-60 mt-1">
+              {busy
+                ? <React.Fragment><Icon name="refresh" size={15} className="animate-spin"/>Validating…</React.Fragment>
+                : <React.Fragment><Icon name={mode==='signin'?'lock':'shield'} size={15}/>{mode==='signin' ? 'Sign In Securely' : (role==='pharmacy' ? 'Submit for NMRA Verification' : 'Create My Account')}</React.Fragment>}
+            </button>
+            <p className="text-center text-[10px] text-slate-400 leading-snug">
+              {role==='pharmacy'
+                ? 'By registering you agree to the RxBridge pharmacist code of conduct & NMRA data-sharing terms.'
+                : 'Protected with on-device encryption. Your prescription data never leaves your phone unencrypted.'}
+            </p>
+          </form>
+        )}
+
+        {/* ---------- VERIFYING PHASE ---------- */}
+        {phase==='verifying' && (
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col gap-3">
+              {STEPS.map((s, i) => {
+                const done = i < vStep;
+                const active = i === vStep;
+                return (
+                  <div key={s.t} className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300 ${done ? 'border-emerald-200 bg-emerald-50/60' : active ? 'border-rx-blue/25 bg-blue-50/50' : 'border-slate-100 bg-slate-50/50 opacity-50'}`}>
+                    <span className={`grid place-items-center w-8 h-8 rounded-lg shrink-0 ${done ? 'bg-emerald-500 text-white' : active ? 'bg-white text-rx-blue border border-rx-blue/30' : 'bg-slate-200 text-slate-400'}`}>
+                      {done ? <Icon name="check" size={15} className="anim-popIn"/> : active ? <Icon name="refresh" size={14} className="animate-spin"/> : <Icon name={s.icon} size={14}/>}
+                    </span>
+                    <span className={`text-[13px] font-semibold ${done ? 'text-emerald-700' : active ? 'text-slate-800' : 'text-slate-400'}`}>{s.t}</span>
+                    {done && <span className="ml-auto text-[10px] font-mono font-bold text-emerald-500">OK</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ---------- DONE PHASE ---------- */}
+        {phase==='done' && role==='patient' && (
+          <div className="p-6 sm:p-8 text-center anim-fadeUp">
+            <span className="anim-bigCheck inline-grid place-items-center w-16 h-16 rounded-full bg-emerald-500 text-white shadow-[0_14px_28px_-10px_rgba(16,185,129,.6)]">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" strokeDasharray="24" strokeDashoffset="24" style={{animation:'drawCheck .5s ease .25s forwards'}}/>
+              </svg>
+            </span>
+            <h3 className="mt-4 font-display text-xl font-bold text-slate-900">
+              Welcome{(mode==='signup' && form.name) ? `, ${form.name.trim().split(' ')[0]}` : ''}!
+            </h3>
+            <p className="mt-1.5 text-sm text-slate-500 max-w-xs mx-auto">Your patient account is ready. Scan prescriptions, search live stock and reserve medicines in under 2 minutes.</p>
+            <div className="mt-6 grid gap-2.5">
+              <button onClick={finishAuth}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_-10px_rgba(30,64,175,.6)] hover:bg-blue-800 active:scale-[.99] transition-all">
+                Start Searching Medicines <Icon name="arrowRight" size={15}/>
+              </button>
+              <button onClick={onClose} className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors py-1">Maybe later</button>
+            </div>
+          </div>
+        )}
+
+        {phase==='done' && role==='pharmacy' && (
+          <div className="p-5 sm:p-6 anim-fadeUp">
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+              <span className="grid place-items-center w-9 h-9 rounded-xl bg-white border border-amber-200 text-amber-500 shrink-0 shadow-sm"><Icon name="clock" size={16}/></span>
+              <div>
+                <p className="text-sm font-bold text-amber-700">Pending NMRA Licensing Verification (1–2 Hours)</p>
+                <p className="text-xs text-amber-600/90 mt-1 leading-relaxed">
+                  Application for <span className="font-semibold">{form.phName.trim()}</span> received. We will SMS you once licence <span className="font-mono">{form.nmra.trim().toUpperCase()}</span> clears the registry. Dashboard preview access is enabled meanwhile.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+              {[
+                {k:'Pharmacy',  v:form.phName.trim(), icon:'building'},
+                {k:'Location',  v:`${form.city.trim()}, ${form.district} District`, icon:'mapPin'},
+                {k:'NMRA Licence', v:form.nmra.trim().toUpperCase(), icon:'fileText', mono:true},
+                {k:'SLMC Reg.', v:form.slmc.trim().toUpperCase(), icon:'idCard', mono:true},
+                {k:'Coordinates', v:`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`, icon:'locate', mono:true},
+              ].map(r => (
+                <div key={r.k} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                  <Icon name={r.icon} size={14} className="text-slate-400 shrink-0"/>
+                  <span className="text-slate-400 font-medium w-28 shrink-0">{r.k}</span>
+                  <span className={`font-semibold text-slate-700 truncate ${r.mono ? 'font-mono text-xs' : ''}`}>{r.v}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-2.5">
+              <button onClick={finishAuth}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_-10px_rgba(30,64,175,.6)] hover:bg-blue-800 active:scale-[.99] transition-all">
+                <Icon name="store" size={15}/>Enter Pharmacy Dashboard (Preview)
+              </button>
+              <button onClick={onClose} className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors py-1">Done for now</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   PATIENT PORTAL — hero, radar, scanner, search, results, map
+   ============================================================ */
+function ShortageTicker({onPick}){
+  const [off, setOff] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(()=> setOff(o => (o+1)%TICKER.length), 3400);
+    return () => clearInterval(iv);
+  }, []);
+  const visible = [0,1,2].map(i => TICKER[(off+i)%TICKER.length]);
+  return (
+    <div className="bg-white/90 backdrop-blur rounded-2xl border border-slate-200 shadow-card p-4 anim-fadeUp" style={{animationDelay:'120ms'}}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="flex items-center gap-2 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 anim-red"/>Shortage Radar
+        </span>
+        <span className="text-[10px] font-mono text-slate-300">live feed</span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {visible.map((t,i) => (
+          <button key={off+'-'+i} onClick={()=>onPick(t)}
+            className="anim-fadeUp group flex items-center gap-3 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 px-2.5 py-2 text-left transition-all duration-150"
+            style={{animationDelay:`${i*90}ms`}}>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS[t.s].dot}`}/>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[13px] font-semibold text-slate-700 truncate group-hover:text-rx-blue transition-colors">{t.t}</span>
+              <span className="block text-[11px] text-slate-400">{t.d}</span>
+            </span>
+            <span className="text-[10px] font-mono text-slate-300 shrink-0">{t.time}</span>
+          </button>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[10px] text-slate-400 text-center">Tap an alert to search it instantly</p>
+    </div>
+  );
+}
+
+const SCAN_STEPS = ['Reading image…','Detecting handwriting…','Matching NMRA drug database…','Extracting dosages…'];
+const SCAN_SAMPLE = ['Amoxicillin 250mg','Panadol 500mg','Metformin 500mg'];
+
+function ScannerCard({onUseTag, pushToast}){
+  const inputRef = useRef(null);
+  const ivRef = useRef(null);
+  const [drag, setDrag] = useState(false);
+  const [img, setImg] = useState(null);
+  const [phase, setPhase] = useState('idle');
+  const [progress, setProgress] = useState(0);
+  const [step, setStep] = useState(0);
+  const [tags, setTags] = useState([]);
+
+  useEffect(() => () => clearInterval(ivRef.current), []);
+
+  const startScan = () => {
+    if (!img) pushToast('No photo attached — running a demo scan with a sample prescription.', 'info');
+    setPhase('scanning'); setTags([]); setProgress(0); setStep(0);
+    const t0 = Date.now();
+    clearInterval(ivRef.current);
+    ivRef.current = setInterval(() => {
+      const p = Math.min(100, (Date.now()-t0)/2400*100);
+      setProgress(p);
+      setStep(Math.min(3, Math.floor(p/25)));
+      if (p >= 100){ clearInterval(ivRef.current); setPhase('done'); setTags(SCAN_SAMPLE); }
+    }, 80);
+  };
+
+  const handleFiles = (files) => {
+    const file = files && files[0];
+    if (!file) return;
+    if (!/image\/(png|jpe?g)/.test(file.type)){ pushToast('Please drop a PNG or JPG image of the prescription.', 'error'); return; }
+    setImg(URL.createObjectURL(file));
+    startScan();
+  };
+
+  const reset = () => {
+    clearInterval(ivRef.current);
+    setImg(null); setPhase('idle'); setTags([]); setProgress(0); setStep(0);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5 flex flex-col anim-fadeUp" style={{animationDelay:'60ms'}}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="grid place-items-center w-9 h-9 rounded-xl bg-rx-blue/10 text-rx-blue"><Icon name="sparkles" size={16}/></span>
+          <div>
+            <h3 className="font-display font-semibold text-slate-900 text-[15px]">AI Prescription Scanner</h3>
+            <p className="text-xs text-slate-400">OCR runs on-device — nothing is uploaded</p>
+          </div>
+        </div>
+        <span className="text-[9px] font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">BETA</span>
+      </div>
+
+      <div
+        role="button" tabIndex={0} aria-label="Upload prescription image"
+        onClick={()=>{ if(phase==='idle') inputRef.current.click(); }}
+        onKeyDown={e=>{ if(e.key==='Enter' && phase==='idle') inputRef.current.click(); }}
+        onDragOver={e=>{ e.preventDefault(); setDrag(true); }}
+        onDragLeave={()=>setDrag(false)}
+        onDrop={e=>{ e.preventDefault(); setDrag(false); handleFiles(e.dataTransfer.files); }}
+        className={`relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer ${img && phase==='scanning' ? 'p-2.5' : 'px-4 py-8'} ${drag ? 'border-emerald-500 bg-emerald-50/70 scale-[1.01]' : 'border-slate-300 bg-slate-50/50 hover:border-rx-blue/40 hover:bg-blue-50/30'}`}>
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={e=>handleFiles(e.target.files)}/>
+
+        {phase==='scanning' && img ? (
+          <React.Fragment>
+            <img src={img} alt="Prescription preview" className="w-full max-h-40 object-cover rounded-lg"/>
+            <span className="scanline anim-scanY"/>
+          </React.Fragment>
+        ) : phase==='scanning' ? (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Icon name="fileText" size={30} className="text-rx-blue animate-pulse"/>
+            <p className="text-sm font-semibold text-slate-600">Analysing prescription…</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center text-center gap-2.5">
+            <span className="grid place-items-center w-12 h-12 rounded-2xl bg-rx-blue/10 text-rx-blue"><Icon name="upload" size={20}/></span>
+            <p className="text-sm font-semibold text-slate-700">Drop prescription photo here <span className="text-slate-400 font-medium">or click to browse</span></p>
+            <p className="text-[11px] text-slate-400 font-medium">PNG / JPG · up to 10 MB · processed on-device</p>
+          </div>
+        )}
+
+        {phase==='scanning' && (
+          <div className="mt-3">
+            <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+              <span className="block h-full bg-emerald-500 rounded-full transition-[width] duration-100" style={{width: progress+'%'}}/>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span>{SCAN_STEPS[step]}</span><span>{Math.round(progress)}%</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 flex items-center gap-2.5">
+        <button onClick={startScan} disabled={phase==='scanning'}
+          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_20px_-8px_rgba(30,64,175,.55)] hover:bg-blue-800 active:scale-[.98] transition-all duration-150 disabled:opacity-60 disabled:cursor-wait">
+          {phase==='scanning'
+            ? <React.Fragment><Icon name="refresh" size={15} className="animate-spin"/>Scanning — hold on…</React.Fragment>
+            : <React.Fragment><Icon name="camera" size={15}/>Scan Prescription with AI</React.Fragment>}
+        </button>
+        {(img || phase==='done') && (
+          <button onClick={reset} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition">
+            <Icon name="x" size={13}/>Reset
+          </button>
+        )}
+      </div>
+
+      {phase==='done' && (
+        <div className="mt-4 anim-fadeUp">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Extracted medicines</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+              <Icon name="check" size={10}/>96% CONFIDENCE
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2 min-h-[34px]">
+            {tags.map((t,i) => (
+              <span key={t} className="anim-popIn inline-flex items-center gap-1 rounded-full border border-rx-blue/20 bg-rx-blue/5 pl-3 pr-1.5 py-1 text-xs font-semibold text-rx-blue" style={{animationDelay:`${i*120}ms`}}>
+                <button className="hover:underline underline-offset-2 decoration-rx-blue/40" onClick={()=>onUseTag(t)}>{t}</button>
+                <button onClick={()=>setTags(tags.filter(x=>x!==t))} aria-label={`Remove ${t}`}
+                  className="grid place-items-center w-5 h-5 rounded-full hover:bg-rx-blue hover:text-white transition-colors"><Icon name="x" size={11}/></button>
+              </span>
+            ))}
+            {tags.length===0 && <span className="text-xs text-slate-400 py-1">All tags removed — type a search below.</span>}
+          </div>
+          <p className="mt-2.5 text-[11px] text-slate-400">Tap a medicine to run an instant availability search.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MedAutocomplete({value, onChange, onPick}){
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(-1);
+  const boxRef = useRef(null);
+  useClickOutside(boxRef, ()=>setOpen(false));
+
+  const q = value.trim().toLowerCase();
+  const sug = q
+    ? MEDICINES.filter(m => (m.name+' '+m.strength+' '+(m.gener||'')).toLowerCase().includes(q)).slice(0,6)
+    : MEDICINES.slice(0,5);
+
+  const commit = (v) => { setOpen(false); setHi(-1); onPick(v); };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <div className="relative">
+        <Icon name="search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+        <input
+          value={value}
+          onChange={e=>{ onChange(e.target.value); setOpen(true); setHi(-1); }}
+          onFocus={()=>setOpen(true)}
+          onKeyDown={e=>{
+            if (e.key==='ArrowDown'){ e.preventDefault(); setOpen(true); setHi(h=>Math.min(h+1, sug.length-1)); }
+            else if (e.key==='ArrowUp'){ e.preventDefault(); setHi(h=>Math.max(h-1,-1)); }
+            else if (e.key==='Enter'){ e.preventDefault(); commit(hi>=0 && sug[hi] ? `${sug[hi].name} ${sug[hi].strength}` : value); }
+            else if (e.key==='Escape'){ setOpen(false); }
+          }}
+          placeholder={'Try "Ventolin inhaler" or "Panadol 500mg"'}
+          aria-label="Medicine name"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-10 pr-9 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal outline-none focus:bg-white focus:border-rx-blue focus:ring-4 focus:ring-rx-blue/10 transition"/>
+        {value && (
+          <button onClick={()=>onChange('')} aria-label="Clear" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"><Icon name="x" size={14}/></button>
+        )}
+      </div>
+      {open && sug.length>0 && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-pop p-1.5 overflow-hidden anim-fadeUp">
+          {sug.map((m,i) => (
+            <button key={m.key} onClick={()=>commit(`${m.name} ${m.strength}`)} onMouseEnter={()=>setHi(i)}
+              className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left transition-colors ${i===hi ? 'bg-rx-blue/5' : 'hover:bg-slate-50'}`}>
+              <span className="grid place-items-center w-8 h-8 rounded-lg bg-slate-100 text-slate-500 shrink-0"><Icon name="pill" size={14}/></span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-slate-800 truncate">{m.name} <span className="text-slate-400 font-normal">{m.strength}</span></span>
+                <span className="block text-xs text-slate-400">{m.gener}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && q && sug.length===0 && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-pop px-3.5 py-3 anim-fadeUp">
+          <p className="text-xs text-slate-400">No catalog match — press <span className="font-mono font-semibold text-slate-500">Enter</span> to search the raw name anyway.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DistrictSelect({value, onChange, districts, placeholder}){
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useClickOutside(ref, ()=>setOpen(false));
+  const list = districts || DISTRICTS;
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={()=>setOpen(o=>!o)} aria-haspopup="listbox" aria-expanded={open}
+        className={`w-full flex items-center justify-between gap-2 rounded-xl border px-3.5 py-3 text-sm font-semibold transition ${value ? 'border-slate-200 bg-slate-50/60 text-slate-700 hover:border-slate-300' : 'border-slate-200 bg-slate-50/60 text-slate-400 font-normal'} focus:outline-none focus:border-rx-blue focus:ring-4 focus:ring-rx-blue/10`}>
+        <span className="flex items-center gap-2 min-w-0"><Icon name="mapPin" size={15} className="text-rx-blue shrink-0"/><span className="truncate">{value || placeholder || 'District'}</span></span>
+        <Icon name="chevronDown" size={15} className={`text-slate-400 transition-transform duration-200 shrink-0 ${open?'rotate-180':''}`}/>
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-pop p-1.5 max-h-64 overflow-y-auto scroll-slim anim-fadeUp" role="listbox">
+          {list.map(d => {
+            const name = typeof d === 'string' ? d : d.name;
+            const partners = typeof d === 'object' ? d.partners : null;
+            return (
+              <button key={name} type="button" role="option" aria-selected={value===name} onClick={()=>{ onChange(name); setOpen(false); }}
+                className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-sm transition-colors ${value===name ? 'bg-rx-blue/5 text-rx-blue font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                <span className="flex items-center gap-1.5">{value===name && <Icon name="check" size={13}/>}{name}</span>
+                {partners !== null && (partners > 0
+                  ? <span className="text-[10px] font-mono text-slate-300">{partners} live</span>
+                  : <span className="text-[9px] font-mono font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">EXPANDING</span>)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SkeletonCard({i}){
+  return (
+    <div className="anim-fadeUp bg-white rounded-2xl border border-slate-200 p-5" style={{animationDelay:`${i*90}ms`}}>
+      <div className="flex items-center gap-3">
+        <div className="shimmer w-10 h-10 rounded-xl bg-slate-100"/>
+        <div className="flex-1 space-y-2">
+          <div className="shimmer h-3.5 w-1/2 rounded bg-slate-100"/>
+          <div className="shimmer h-2.5 w-1/3 rounded bg-slate-100"/>
+        </div>
+        <div className="shimmer h-6 w-28 rounded-full bg-slate-100"/>
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="shimmer h-2.5 w-2/3 rounded bg-slate-100"/>
+        <div className="shimmer h-2.5 w-1/2 rounded bg-slate-100"/>
+      </div>
+      <div className="mt-4 shimmer h-9 w-full rounded-xl bg-slate-100"/>
+    </div>
+  );
+}
+
+function PharmacyCard({p, med, i, onReserve, onAlt}){
+  const s = STATUS[p.status];
+  const units = p.status==='low' ? 2 + hash(p.id+med)%4 : 0;
+  return (
+    <article className="anim-fadeUp group bg-white rounded-2xl border border-slate-200 shadow-card hover:shadow-lift hover:-translate-y-0.5 hover:border-slate-300/80 transition-all duration-200 p-4 sm:p-5"
+      style={{animationDelay:`${Math.min(i*70,500)}ms`}}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="grid place-items-center w-10 h-10 rounded-xl bg-slate-100 text-slate-500 group-hover:bg-rx-blue/10 group-hover:text-rx-blue transition-colors duration-200 shrink-0"><Icon name="store" size={18}/></span>
+          <div className="min-w-0">
+            <h3 className="font-display font-semibold text-slate-900 leading-snug truncate">{p.name}</h3>
+            <p className="text-xs text-slate-400 truncate">{p.city} · {p.district} District</p>
+          </div>
+        </div>
+        <StatusPill s={s} updated={p.updated} units={units}/>
+      </div>
+
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate-500">
+        <span className="flex items-center gap-1.5"><Icon name="navigation" size={13} className="text-slate-400"/><span className="font-mono font-semibold text-slate-600">{p.dist} km</span> away</span>
+        <span className="flex items-center gap-1.5"><Icon name="clock" size={13} className="text-slate-400"/>Open until {p.open}</span>
+        <a href={'tel:'+p.phone.replace(/\s/g,'')} className="flex items-center gap-1.5 hover:text-rx-blue transition-colors"><Icon name="phone" size={13} className="text-slate-400"/>{p.phone}</a>
+      </div>
+
+      {p.status !== 'out' ? (
+        <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+          <span className={`text-[11px] font-medium flex items-center gap-1.5 ${p.status==='low' ? 'text-amber-600' : 'text-slate-400'}`}>
+            <Icon name="shield" size={12} className={p.status==='low' ? 'text-amber-500' : 'text-emerald-500'}/>
+            {p.status==='low' ? `Only ${units} units left — first reservation wins` : 'Stock held 2 hours · no advance payment'}
+          </span>
+          <button onClick={()=>onReserve(p)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-rx-blue px-3.5 py-2 text-xs font-semibold text-white shadow-[0_8px_16px_-8px_rgba(30,64,175,.6)] hover:bg-blue-800 hover:-translate-y-px active:scale-[.97] transition-all duration-150 whitespace-nowrap">
+            <Icon name="timer" size={13}/>Reserve Pickup
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5">
+          <div className="flex items-start gap-2.5">
+            <span className="grid place-items-center w-7 h-7 rounded-lg bg-white border border-amber-200 text-amber-500 shrink-0 shadow-sm"><Icon name="sparkles" size={14}/></span>
+            <div className="min-w-0 text-[13px] leading-relaxed text-slate-600">
+              <p>
+                <span className="font-semibold text-slate-800">{med}</span> is out of stock here
+                {p.alt ? (
+                  <React.Fragment>
+                    {' '}— but bio-identical alternative{' '}
+                    <button onClick={()=>onAlt(p.altName)} className="font-semibold text-rx-blue underline decoration-rx-blue/30 underline-offset-2 hover:decoration-rx-blue/70 transition">'{p.altName}'</button>
+                    {' '}is available <span className="font-mono text-xs font-semibold">{p.alt.dist} km</span> away at <span className="font-semibold text-slate-800">{p.alt.name}</span>.
+                  </React.Fragment>
+                ) : ' — no verified alternative brand within the district right now.'}
+              </p>
+              {p.alt && (
+                <div className="mt-2.5 flex items-center gap-2.5">
+                  <button onClick={()=>onAlt(p.altName)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-rx-blue/25 px-2.5 py-1.5 text-[11px] font-semibold text-rx-blue hover:bg-rx-blue hover:text-white hover:border-rx-blue transition-all duration-150 active:scale-[.97]">
+                    Switch search <Icon name="arrowRight" size={12}/>
+                  </button>
+                  <span className="text-[10px] font-mono text-slate-400">AI confidence {90 + hash(p.id+(p.altName||''))%9}%</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function MapPane({results, districtName}){
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (mapRef.current) return;
+    const map = L.map(elRef.current, {zoomControl:false, scrollWheelZoom:false});
+    map.setView([7.9, 80.7], 7);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+    L.control.zoom({position:'bottomright'}).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current, layer = layerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
+    const d = DISTRICTS.find(x=>x.name===districtName) || DISTRICTS[0];
+    if (!results || !results.length){ map.setView([d.lat, d.lng], d.zoom); return; }
+    const bounds = [];
+    results.forEach((r,i) => {
+      const s = STATUS[r.status];
+      const icon = L.divIcon({
+        className:'rx-pin',
+        html:`<span style="--c:${s.hex};animation-delay:${i*60}ms"></span>`,
+        iconSize:[22,22], iconAnchor:[11,11]
+      });
+      const sHex = s.hex, sLabel = s.label;
+      L.marker([r.lat, r.lng], {icon}).addTo(layer)
+        .bindPopup(`
+          <div style="min-width:190px">
+            <div style="font-family:Sora,sans-serif;font-size:13px;font-weight:700;color:#0f172a">${r.name}</div>
+            <div style="font-size:11px;color:#64748b;margin:2px 0 8px">${r.city} · ${r.dist} km away</div>
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:${sHex};background:${sHex}14;border:1px solid ${sHex}40;border-radius:99px;padding:3px 9px">
+              <span style="width:7px;height:7px;border-radius:99px;background:${sHex}"></span>${sLabel} — ${r.med}
+            </span>
+            <div style="margin-top:8px;font-size:11px;color:#94a3b8">Updated ${r.updated} ago · ${r.phone}</div>
+          </div>`);
+      bounds.push([r.lat, r.lng]);
+    });
+    if (bounds.length === 1) map.setView(bounds[0], 14);
+    else map.fitBounds(bounds, {padding:[42,42], maxZoom:15});
+  }, [results, districtName]);
+
+  useEffect(() => () => { if (mapRef.current){ mapRef.current.remove(); mapRef.current=null; } }, []);
+
+  return <div ref={elRef} className="w-full h-full"/>;
+}
+
+function PatientView({pushToast, onReserve, branchStock}){
+  const [query, setQuery] = useState('Amoxicillin 250mg');
+  const [district, setDistrict] = useState('Colombo');
+  const [last, setLast] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [availFirst, setAvailFirst] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const runSearch = useCallback((q, d) => {
+    if (!q || !q.trim()){ pushToast('Type a medicine name to search the network.', 'info'); return; }
+    setLoading(true);
+    const qd = q.trim(), dd = d;
+    setTimeout(() => {
+      const res = buildResults(qd, dd, branchStock);
+      setLast({query:qd, district:dd, display:res.display, list:res.list, at:Date.now()});
+      setLoading(false);
+    }, 700);
+  }, [branchStock, pushToast]);
+
+  useEffect(() => { runSearch('Amoxicillin 250mg', 'Colombo'); }, []);
+
+  const scrollToResults = () => setTimeout(() => {
+    const el = document.getElementById('rx-results');
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 80);
+
+  const pickAndSearch = (med, d) => { setQuery(med); setDistrict(d); runSearch(med, d); scrollToResults(); };
+
+  const shown = useMemo(() => {
+    if (!last) return [];
+    let arr = last.list;
+    if (statusFilter !== 'all') arr = arr.filter(r => r.status === statusFilter);
+    if (availFirst) arr = [...arr].sort((a,b) => (SEV[a.status]-SEV[b.status]) || (a.dist-b.dist));
+    return arr;
+  }, [last, statusFilter, availFirst]);
+
+  const inC = last ? last.list.filter(r=>r.status==='in').length : 0;
+  const lowC = last ? last.list.filter(r=>r.status==='low').length : 0;
+  const outC = last ? last.list.filter(r=>r.status==='out').length : 0;
+
+  const filterChips = [
+    {id:'all', label:'All', n: last?last.list.length:0, on:'bg-slate-900 text-white border-slate-900'},
+    {id:'in',  label:'In Stock', n:inC, on:STATUS.in.seg},
+    {id:'low', label:'Low', n:lowC, on:STATUS.low.seg},
+    {id:'out', label:'Out', n:outC, on:STATUS.out.seg},
+  ];
+
+  return (
+    <div>
+      {/* ---------- HERO ---------- */}
+      <section id="rx-hero" className="relative overflow-hidden hero-dots border-b border-slate-200/70">
+        <Icon name="pill" size={210} strokeWidth={1} className="absolute -right-10 top-8 text-rx-blue/[.05] rotate-12 pointer-events-none hidden lg:block"/>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-9 md:pt-14 md:pb-11 grid lg:grid-cols-12 gap-8 items-end">
+          <div className="lg:col-span-7 anim-fadeUp">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold tracking-wider text-emerald-700 uppercase mb-5">
+              <Icon name="shield" size={13}/>
+              NMRA &amp; SLMC verified network
+              <span className="w-1 h-1 rounded-full bg-emerald-300"/>
+              <span className="font-mono normal-case tracking-normal">2,431 pharmacies reporting</span>
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.9rem] font-bold text-slate-900 leading-[1.1] tracking-tight">
+              Find Essential &amp;{' '}
+              <span className="relative inline-block text-rx-blue">
+                Scarce
+                <svg className="absolute -bottom-1.5 left-0 w-full" height="8" viewBox="0 0 120 8" preserveAspectRatio="none" fill="none">
+                  <path d="M2 6 C 30 1.5, 60 1.5, 118 4.5" stroke="#10b981" strokeWidth="3" strokeLinecap="round" opacity=".9"/>
+                </svg>
+              </span>{' '}
+              Medicines Near You
+            </h1>
+            <p className="mt-4 text-slate-500 text-base sm:text-lg max-w-xl leading-relaxed">
+              Search live shelf-level inventory across Sri Lanka's pharmacy network, scan a doctor's prescription with AI, and reserve for pickup within two hours — before the shelf runs empty.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500 font-medium">
+              <span className="flex items-center gap-1.5"><Icon name="shield" size={15} className="text-emerald-500"/>NMRA-licensed pharmacies only</span>
+              <span className="flex items-center gap-1.5"><Icon name="timer" size={15} className="text-rx-blue"/>2-hour pickup reservation</span>
+              <span className="flex items-center gap-1.5"><Icon name="refresh" size={15} className="text-amber-500"/>Stock refreshed every 10 min</span>
+            </div>
+          </div>
+          <div className="lg:col-span-5">
+            <ShortageTicker onPick={t => {
+              const dName = t.d.replace(' District','');
+              const dist = DISTRICTS.some(x=>x.name===dName) ? dName : district;
+              pickAndSearch(t.t, dist);
+            }}/>
+          </div>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* ---------- SCANNER + SEARCH ---------- */}
+        <section id="rx-search" className="grid lg:grid-cols-12 gap-5 pt-8 scroll-mt-24">
+          <div className="lg:col-span-5">
+            <ScannerCard pushToast={pushToast} onUseTag={tag => pickAndSearch(tag, district)}/>
+          </div>
+
+          <div className="lg:col-span-7">
+            <form className="bg-white rounded-2xl border border-slate-200 shadow-card p-5 flex flex-col anim-fadeUp h-full" style={{animationDelay:'120ms'}}
+              onSubmit={e => { e.preventDefault(); runSearch(query, district); }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid place-items-center w-9 h-9 rounded-xl bg-slate-100 text-slate-600"><Icon name="search" size={16}/></span>
+                  <div>
+                    <h3 className="font-display font-semibold text-slate-900 text-[15px]">Search Inventory</h3>
+                    <p className="text-xs text-slate-400">Live shelf-level stock · {district} District</p>
+                  </div>
+                </div>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 anim-live"/>LIVE
+                </span>
+              </div>
+
+              <div className="grid sm:grid-cols-[1fr,180px,auto] gap-3 items-start">
+                <MedAutocomplete value={query} onChange={setQuery} onPick={v => { setQuery(v); runSearch(v, district); }}/>
+                <DistrictSelect value={district} onChange={setDistrict}/>
+                <button type="submit" disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_-8px_rgba(30,64,175,.5)] hover:bg-blue-800 hover:-translate-y-px active:scale-[.98] transition-all duration-150 disabled:opacity-60">
+                  {loading
+                    ? <React.Fragment><Icon name="refresh" size={15} className="animate-spin"/>Searching…</React.Fragment>
+                    : <React.Fragment><Icon name="search" size={15}/>Search Inventory</React.Fragment>}
+                </button>
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <span className="font-semibold uppercase tracking-wider text-[10px] mr-1">Trending:</span>
+                {['Ventolin Inhaler 100mcg','Insulin Mixtard 30/70','ORS Sachets 20.5g'].map(t => (
+                  <button type="button" key={t} onClick={()=>pickAndSearch(t, district)}
+                    className="rounded-full border border-slate-200 px-2.5 py-1 font-medium text-slate-500 hover:border-rx-blue/40 hover:text-rx-blue hover:bg-rx-blue/5 transition-colors">
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </form>
+          </div>
+        </section>
+
+        {/* ---------- RESULTS ---------- */}
+        <section id="rx-results" className="pt-10 pb-16 scroll-mt-20">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+            <div>
+              <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900">
+                {last
+                  ? <React.Fragment>Results for <span className="text-rx-blue">{last.display}</span> <span className="text-slate-400 font-medium">in</span> {last.district}</React.Fragment>
+                  : 'Scanning the islandwide network…'}
+              </h2>
+              {last && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
+                  <span className="text-emerald-600">{inC} in stock</span><span className="text-slate-300">·</span>
+                  <span className="text-amber-600">{lowC} low</span><span className="text-slate-300">·</span>
+                  <span className="text-red-500">{outC} out</span><span className="text-slate-300">·</span>
+                  <span className="text-slate-400 font-mono">updated moments ago</span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                {filterChips.map(f => (
+                  <button key={f.id} onClick={()=>setStatusFilter(f.id)}
+                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold border border-transparent transition-all ${statusFilter===f.id ? f.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+                    {f.label} <span className="font-mono opacity-70">{f.n}</span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={()=>setAvailFirst(v=>!v)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${availFirst ? 'bg-rx-blue text-white border-rx-blue shadow-[0_8px_16px_-8px_rgba(30,64,175,.5)]' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-700'}`}>
+                <Icon name="sliders" size={13}/>Availability first
+              </button>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-5 gap-5 items-start">
+            {/* List pane */}
+            <div className="lg:col-span-3">
+              <div className="flex flex-col gap-3.5 lg:max-h-[660px] lg:overflow-y-auto scroll-slim lg:pr-1.5 lg:-mr-1.5 pb-2">
+                {loading && [0,1,2].map(i => <SkeletonCard key={i} i={i}/>)}
+
+                {!loading && last && shown.length===0 && last.list.length===0 && (
+                  <div className="anim-fadeUp text-center py-14 px-6 rounded-2xl border border-dashed border-slate-300 bg-white/60">
+                    <span className="inline-grid place-items-center w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mb-3"><Icon name="mapPin" size={22}/></span>
+                    <h3 className="font-display font-semibold text-slate-700">No partner pharmacies reporting in {last.district} yet</h3>
+                    <p className="text-sm text-slate-400 mt-1">Our network is expanding fast — try Colombo, Kandy, Galle or Jaffna.</p>
+                    <button onClick={()=>pickAndSearch(last.query, 'Colombo')}
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-rx-blue px-4 py-2 text-xs font-semibold text-white hover:bg-blue-800 active:scale-[.98] transition">
+                      Search Colombo instead <Icon name="arrowRight" size={12}/>
+                    </button>
+                  </div>
+                )}
+
+                {!loading && last && shown.length===0 && last.list.length>0 && (
+                  <div className="anim-fadeUp text-center py-12 rounded-2xl border border-dashed border-slate-300 bg-white/60">
+                    <p className="text-sm font-semibold text-slate-600">No pharmacies match this filter.</p>
+                    <button onClick={()=>setStatusFilter('all')} className="mt-2 text-xs font-semibold text-rx-blue hover:underline">Show all results</button>
+                  </div>
+                )}
+
+                {!loading && shown.map((p,i) => (
+                  <PharmacyCard key={p.id} p={p} med={last.display} i={i}
+                    onReserve={ph => onReserve(ph, last.display)}
+                    onAlt={alt => pickAndSearch(alt, district)}/>
+                ))}
+              </div>
+            </div>
+
+            {/* Map pane */}
+            <div className="lg:col-span-2 lg:sticky lg:top-[88px]">
+              <div className="relative h-[340px] lg:h-[660px] isolate rounded-2xl overflow-hidden border border-slate-200 shadow-card bg-slate-100 anim-fadeUp" style={{animationDelay:'150ms'}}>
+                {last
+                  ? <MapPane results={shown} districtName={last.district}/>
+                  : <div className="absolute inset-0 grid place-items-center text-slate-400">
+                      <div className="flex flex-col items-center gap-2">
+                        <Icon name="mapPin" size={26} className="animate-bounce"/>
+                        <span className="text-xs font-semibold">Locating pharmacies…</span>
+                      </div>
+                    </div>}
+                <div className="absolute top-3 left-3 z-[1000] pointer-events-none flex items-center gap-2 rounded-lg border border-slate-200 bg-white/90 backdrop-blur px-3 py-1.5 shadow-sm">
+                  <Icon name="mapPin" size={13} className="text-rx-blue"/>
+                  <span className="text-xs font-bold text-slate-700">{(last ? last.district : district)} District</span>
+                  <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 anim-live"/>LIVE
+                  </span>
+                </div>
+                <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none rounded-lg border border-slate-200 bg-white/90 backdrop-blur px-3 py-2 shadow-sm flex items-center gap-3 text-[11px] font-semibold text-slate-500">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500"/>In stock</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500"/>Low</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500"/>Out</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   RESERVATION MODAL (auth-aware prefill)
+   ============================================================ */
+function ReservationModal({data, prefill, onClose, onConfirm}){
+  const {pharmacy, med} = data;
+  const [form, setForm] = useState({name: prefill?.name || '', phone: prefill?.phone || '', qty:1, time:PICKUP_TIMES[1]});
+  const [touched, setTouched] = useState({});
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef(null);
+
+  useEffect(() => {
+    if (nameRef.current && !prefill?.name) nameRef.current.focus();
+    const h = e => { if (e.key==='Escape') onClose(); };
+    window.addEventListener('keydown', h);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = ''; };
+  }, []);
+
+  const errors = useMemo(() => {
+    const er = {};
+    if (form.name.trim().length < 3) er.name = "Please enter the patient's full name (min 3 characters).";
+    if (!RX_PHONE.test(digitsOf(form.phone))) er.phone = 'Enter a valid Sri Lankan mobile — e.g. +94 77 862 4415.';
+    const q = Number(form.qty);
+    if (!form.qty || isNaN(q) || q<1 || q>10 || !Number.isInteger(q)) er.qty = 'Quantity must be a whole number between 1 and 10.';
+    return er;
+  }, [form]);
+  const errFor = k => touched[k] ? errors[k] : null;
+  const touch = k => () => setTouched(t => ({...t, [k]:true}));
+  const set = (k,v) => setForm(f => ({...f, [k]:v}));
+
+  const inputCls = err => `w-full rounded-xl border ${err ? 'border-red-300 bg-red-50/40 focus:ring-red-100' : 'border-slate-200 bg-slate-50/60 focus:border-rx-blue focus:ring-rx-blue/10'} py-2.5 pl-10 pr-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal outline-none focus:ring-4 transition`;
+
+  const submit = e => {
+    e.preventDefault();
+    setTouched({name:true, phone:true, qty:true});
+    if (Object.keys(errors).length) return;
+    setBusy(true);
+    setTimeout(() => {
+      const ref = 'RB-' + Math.floor(1000 + Math.random()*9000);
+      onConfirm({...form, pharmacy, med, ref});
+      setBusy(false);
+      onClose();
+    }, 900);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-[3px] anim-fadeIn" onClick={onClose}/>
+      <div role="dialog" aria-modal="true" aria-label="Reserve medicine for pickup"
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-pop anim-modalIn max-h-[92vh] overflow-y-auto scroll-slim">
+
+        <div className="flex items-start justify-between gap-3 p-5 pb-4 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <span className="grid place-items-center w-10 h-10 rounded-xl bg-rx-blue/10 text-rx-blue shrink-0"><Icon name="timer" size={18}/></span>
+            <div>
+              <h3 className="font-display font-bold text-slate-900 leading-tight">Reserve for 2-Hour Pickup</h3>
+              <p className="text-xs text-slate-400 mt-1">{med} · at <span className="font-semibold text-slate-500">{pharmacy.name}</span>, {pharmacy.city} ({pharmacy.dist} km)</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close dialog" className="grid place-items-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0"><Icon name="x" size={16}/></button>
+        </div>
+
+        <form onSubmit={submit} noValidate className="p-5 grid gap-4">
+          <Field label="Patient Full Name" htmlFor="rx-name" error={errFor('name')}>
+            <div className="relative">
+              <Icon name="user" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+              <input id="rx-name" ref={nameRef} value={form.name} onChange={e=>set('name', e.target.value)} onBlur={touch('name')}
+                placeholder="e.g. Nimal Perera" className={inputCls(errFor('name'))}/>
+            </div>
+          </Field>
+
+          <Field label="Mobile Number" htmlFor="rx-phone" error={errFor('phone')}>
+            <div className="relative">
+              <Icon name="phone" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+              <input id="rx-phone" value={form.phone} onChange={e=>set('phone', e.target.value)} onBlur={touch('phone')}
+                placeholder="+94 77 862 4415" className={inputCls(errFor('phone'))}/>
+            </div>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Quantity" htmlFor="rx-qty" error={errFor('qty')}>
+              <div className={`flex items-center rounded-xl border ${errFor('qty') ? 'border-red-300' : 'border-slate-200'} bg-slate-50/60 overflow-hidden`}>
+                <button type="button" aria-label="Decrease quantity" onClick={()=>set('qty', Math.max(1, Number(form.qty||1)-1))} disabled={Number(form.qty)<=1}
+                  className="px-3 py-2.5 text-slate-500 hover:bg-slate-100 transition disabled:opacity-30"><Icon name="minus" size={14}/></button>
+                <input id="rx-qty" type="number" min="1" max="10" value={form.qty} onBlur={touch('qty')}
+                  onChange={e=>set('qty', e.target.value==='' ? '' : Math.max(1, Math.min(10, parseInt(e.target.value,10)||1)))}
+                  className="no-spin w-full text-center bg-transparent text-sm font-semibold text-slate-800 py-2.5 outline-none"/>
+                <button type="button" aria-label="Increase quantity" onClick={()=>set('qty', Math.min(10, Number(form.qty||0)+1))} disabled={Number(form.qty)>=10}
+                  className="px-3 py-2.5 text-slate-500 hover:bg-slate-100 transition disabled:opacity-30"><Icon name="plus" size={14}/></button>
+              </div>
+            </Field>
+            <Field label="Pickup Time" htmlFor="rx-time">
+              <div className="relative">
+                <select id="rx-time" value={form.time} onChange={e=>set('time', e.target.value)}
+                  className="appearance-none w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-3.5 pr-9 py-[11px] text-sm font-semibold text-slate-700 outline-none focus:border-rx-blue focus:ring-4 focus:ring-rx-blue/10 transition cursor-pointer">
+                  {PICKUP_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <Icon name="chevronDown" size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+              </div>
+            </Field>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-2.5 text-[11px] text-slate-500 leading-snug">
+            <Icon name="shield" size={14} className="text-emerald-500 shrink-0"/>
+            Free reservation — stock is held for 2 hours. Pay at the counter on pickup.
+          </div>
+
+          <button type="submit" disabled={busy}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rx-blue px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_-10px_rgba(30,64,175,.6)] hover:bg-blue-800 active:scale-[.99] transition-all duration-150 disabled:opacity-60">
+            {busy
+              ? <React.Fragment><Icon name="refresh" size={15} className="animate-spin"/>Confirming…</React.Fragment>
+              : <React.Fragment><Icon name="checkCheck" size={15}/>Confirm 2-Hour Pickup Reservation</React.Fragment>}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   PHARMACIST PORTAL
+   ============================================================ */
+function StatusSegment({value, onChange}){
+  const OPTS = [{id:'in',label:'In'},{id:'low',label:'Low'},{id:'out',label:'Out'}];
+  return (
+    <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 gap-0.5" role="group" aria-label="Set stock status">
+      {OPTS.map(o => {
+        const s = STATUS[o.id];
+        const on = value===o.id;
+        return (
+          <button key={o.id} onClick={()=>onChange(o.id)} aria-pressed={on} title={s.label}
+            className={`px-2.5 py-1.5 rounded-md text-[11px] font-semibold flex items-center gap-1.5 transition-all duration-150 ${on ? s.seg : 'text-slate-400 hover:text-slate-600 hover:bg-white'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${on ? '' : 'opacity-50'}`}/>{o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function QueueCard({r, leaving, onAccept, onDecline}){
+  const initials = r.patient.split(' ').map(w=>w[0]).slice(0,2).join('');
+  const pending = r.status==='pending';
+  return (
+    <article className={`anim-fadeUp rounded-xl border p-4 transition-all duration-300 ${pending && r.isNew ? 'border-rx-blue/30 bg-blue-50/40 anim-newRing' : 'border-slate-200 bg-white'} ${leaving ? 'opacity-0 -translate-x-3 scale-[.98]' : ''} ${pending ? 'hover:border-slate-300 hover:shadow-sm' : ''}`}>
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="grid place-items-center w-8 h-8 rounded-full bg-rx-blue/10 text-rx-blue text-[11px] font-bold shrink-0">{initials}</span>
+          <div className="min-w-0">
+            <div className="font-semibold text-sm text-slate-800 truncate">{r.patient}</div>
+            <div className="text-[11px] text-slate-400 font-mono">{r.phone}</div>
+          </div>
+        </div>
+        {r.isNew && pending
+          ? <span className="rounded-full bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 tracking-wider animate-pulse shrink-0">NEW</span>
+          : r.status==='confirmed'
+            ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] font-bold px-2 py-0.5 shrink-0"><Icon name="checkCheck" size={10}/>Accepted</span>
+            : <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 text-red-500 text-[10px] font-bold px-2 py-0.5 shrink-0"><Icon name="x" size={10}/>Declined</span>}
+      </div>
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[11px] text-slate-500 font-medium">
+        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-600"><Icon name="pill" size={11}/>{r.med}</span>
+        <span>Qty <span className="font-mono font-semibold text-slate-700">{r.qty}</span></span>
+        <span className="inline-flex items-center gap-1"><Icon name="clock" size={11} className="text-slate-400"/>{r.time}</span>
+        <span className="text-slate-300 font-mono">· {r.requested}</span>
+      </div>
+      {pending ? (
+        <div className="mt-3 flex gap-2">
+          <button onClick={()=>onAccept(r.id)}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold py-2 hover:bg-emerald-600 active:scale-[.97] transition-all duration-150">
+            <Icon name="check" size={13}/>Accept Request
+          </button>
+          <button onClick={()=>onDecline(r.id)}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-semibold py-2 hover:bg-red-50 active:scale-[.97] transition-all duration-150">
+            <Icon name="x" size={13}/>Decline
+          </button>
+        </div>
+      ) : (
+        <p className="mt-3 text-[11px] text-slate-400 font-medium">
+          {r.status==='confirmed' ? 'Confirmed — pickup code sent to patient via SMS.' : 'Declined — patient directed to nearby alternatives.'}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function PharmacistView({pushToast, queue, leaving, decide, branchStock, setBranchStock, auth}){
+  const [flash, setFlash] = useState(null);
+  const [changed, setChanged] = useState({});
+  const [updates, setUpdates] = useState(23);
+  const [syncing, setSyncing] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => { const iv = setInterval(()=>setNow(new Date()), 30000); return ()=>clearInterval(iv); }, []);
+
+  const isPartner = auth?.role==='pharmacy';
+  const phName  = isPartner ? auth.phName  : 'Bambalapitiya Community Pharmacy';
+  const metaLine = isPartner
+    ? `${auth.license} · ${auth.city}, ${auth.district} District · SLMC ${auth.slmc}`
+    : 'BRANCH WP-CMB-0231 · 254 Galle Road, Bambalapitiya · Pharmacist-in-charge: A. Perera';
+
+  const statusOfItem = it => branchStock[`${it.name} ${it.strength}`.toLowerCase()] || it.def;
+  const lowC = INVENTORY.filter(it => statusOfItem(it)==='low').length;
+  const outC = INVENTORY.filter(it => statusOfItem(it)==='out').length;
+  const pendingC = queue.filter(r => r.status==='pending').length;
+
+  const setStatus = it => v => {
+    setBranchStock(s => ({...s, [`${it.name} ${it.strength}`.toLowerCase()]: v}));
+    setChanged(c => ({...c, [it.id]: true}));
+    setUpdates(u => u+1);
+    setFlash(it.id);
+    setTimeout(()=>setFlash(f => f===it.id ? null : f), 800);
+  };
+
+  const onAccept = id => {
+    const r = queue.find(x=>x.id===id);
+    decide(id, true);
+    pushToast(`Accepted ${r.patient}'s reservation — pickup code sent via SMS.`, 'success');
+  };
+  const onDecline = id => {
+    const r = queue.find(x=>x.id===id);
+    decide(id, false);
+    pushToast(`Declined ${r.patient}'s request — patient directed to alternatives.`, 'error');
+  };
+
+  const sync = () => {
+    if (syncing) return;
+    setSyncing(true);
+    setTimeout(() => { setSyncing(false); pushToast('Network sync complete — 2,431 pharmacy nodes responded.', 'info'); }, 1000);
+  };
+
+  const stats = [
+    {icon:'bell',       label:'Open Requests',   value:pendingC, tint:'bg-rx-blue/10 text-rx-blue'},
+    {icon:'alert',      label:'Low Stock Lines', value:lowC,     tint:'bg-amber-50 text-amber-600'},
+    {icon:'package',    label:'Out of Stock',    value:outC,     tint:'bg-red-50 text-red-500'},
+    {icon:'checkCheck', label:'Updates Today',   value:updates,  tint:'bg-emerald-50 text-emerald-600'},
+  ];
+
+  const updatedText = it => changed[it.id] ? 'just now' : `${it.updated} ago`;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 md:pt-8 pb-16 space-y-5">
+      {/* Dashboard header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-5 flex flex-wrap items-center gap-4 justify-between anim-fadeUp">
+        <div className="flex items-center gap-3.5">
+          <span className="grid place-items-center w-12 h-12 rounded-2xl bg-rx-blue text-white shadow-[0_10px_20px_-8px_rgba(30,64,175,.6)]"><Icon name="store" size={22}/></span>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight">{phName}</h1>
+              {isPartner && !auth.verified
+                ? <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600"><Icon name="clock" size={10}/>PENDING NMRA VERIFICATION</span>
+                : <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600"><Icon name="shield" size={10}/>NMRA VERIFIED</span>}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 font-mono">{metaLine}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-right hidden sm:block">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Local time</span>
+            <span className="font-mono text-sm font-semibold text-slate-700">{now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} <span className="text-slate-400 font-normal">GMT+5:30</span></span>
+          </span>
+          <button onClick={sync}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-600 hover:border-rx-blue/40 hover:text-rx-blue hover:bg-rx-blue/5 active:scale-[.98] transition-all">
+            <Icon name="refresh" size={15} className={syncing ? 'animate-spin' : ''}/>Sync Network
+          </button>
+        </div>
+      </div>
+
+      {/* Vitals strip */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-card grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 anim-fadeUp" style={{animationDelay:'60ms'}}>
+        {stats.map(s => (
+          <div key={s.label} className="p-4 sm:p-5 flex items-center gap-3.5">
+            <span className={`grid place-items-center w-10 h-10 rounded-xl shrink-0 ${s.tint}`}><Icon name={s.icon} size={18}/></span>
+            <div>
+              <div className="font-display text-2xl font-bold text-slate-900 leading-none tabular-nums">{s.value}</div>
+              <div className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider">{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-5 items-start">
+        {/* Inventory table */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-card overflow-hidden anim-fadeUp" style={{animationDelay:'120ms'}}>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Icon name="package" size={17} className="text-rx-blue"/>
+              <h2 className="font-display font-semibold text-slate-900">Inventory Status</h2>
+              <span className="text-[10px] font-mono text-slate-400 bg-slate-100 rounded px-1.5 py-0.5">{INVENTORY.length} lines</span>
+            </div>
+            <span className="text-[11px] text-slate-400 hidden sm:block">Changes reflect instantly in the Patient Portal</span>
+          </div>
+
+          <table className="hidden md:table w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
+                <th className="px-5 py-2.5 font-bold">Medicine</th>
+                <th className="px-3 py-2.5 font-bold">Active Ingredient</th>
+                <th className="px-3 py-2.5 font-bold">Form / Shelf</th>
+                <th className="px-3 py-2.5 font-bold">Status</th>
+                <th className="px-5 py-2.5 font-bold text-right">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {INVENTORY.map(it => {
+                const st = STATUS[statusOfItem(it)];
+                return (
+                  <tr key={it.id} className={`border-b border-slate-50 last:border-0 transition-colors duration-500 ${flash===it.id ? 'bg-rx-blue/[.05]' : 'hover:bg-slate-50/60'}`}>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`grid place-items-center w-8 h-8 rounded-lg shrink-0 ${st.tint}`}><Icon name="pill" size={14}/></span>
+                        <div>
+                          <div className="font-semibold text-slate-800">{it.name}</div>
+                          <div className="text-xs text-slate-400">{it.strength}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-slate-500 text-xs">{it.ingredient}</td>
+                    <td className="px-3 py-3 text-slate-500 text-xs">{it.form} · <span className="font-mono">{it.shelf}</span></td>
+                    <td className="px-3 py-3"><StatusSegment value={statusOfItem(it)} onChange={setStatus(it)}/></td>
+                    <td className="px-5 py-3 text-right"><span className={`text-xs font-mono ${changed[it.id] ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>{updatedText(it)}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Mobile inventory cards */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {INVENTORY.map(it => (
+              <div key={it.id} className={`p-4 flex flex-col gap-3 transition-colors duration-500 ${flash===it.id ? 'bg-rx-blue/[.05]' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`grid place-items-center w-8 h-8 rounded-lg shrink-0 ${STATUS[statusOfItem(it)].tint}`}><Icon name="pill" size={14}/></span>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-800 text-sm truncate">{it.name}</div>
+                      <div className="text-xs text-slate-400">{it.strength} · {it.ingredient}</div>
+                      <div className="text-[11px] text-slate-300 font-mono">{it.form} · {it.shelf}</div>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-mono shrink-0 ${changed[it.id] ? 'text-emerald-600 font-semibold' : 'text-slate-300'}`}>{updatedText(it)}</span>
+                </div>
+                <StatusSegment value={statusOfItem(it)} onChange={setStatus(it)}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Reservations queue */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-card overflow-hidden flex flex-col anim-fadeUp" style={{animationDelay:'180ms'}}>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Icon name="bell" size={17} className="text-amber-500"/>
+              <h2 className="font-display font-semibold text-slate-900">Incoming Reservations</h2>
+            </div>
+            <span className="rounded-full bg-rx-blue text-white text-[11px] font-bold px-2 py-0.5 font-mono">{pendingC}</span>
+          </div>
+
+          <div className="p-4 flex flex-col gap-3 overflow-y-auto scroll-slim max-h-[600px]">
+            {queue.length===0 ? (
+              <div className="anim-fadeUp flex flex-col items-center justify-center py-14 text-center">
+                <span className="grid place-items-center w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-500 mb-3"><Icon name="inbox" size={22}/></span>
+                <p className="text-sm font-semibold text-slate-600">Queue clear</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[220px]">All pickup requests handled. New ones will appear here instantly.</p>
+              </div>
+            ) : queue.map(r => (
+              <QueueCard key={r.id} r={r} leaving={!!leaving[r.id]} onAccept={onAccept} onDecline={onDecline}/>
+            ))}
+          </div>
+          <p className="px-5 py-3 border-t border-slate-100 text-[11px] text-slate-400 leading-snug">
+            Requests placed in the <span className="font-semibold text-slate-500">Patient Search Portal</span> land here in real time — try reserving one.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   FOOTER + APP ROOT
+   ============================================================ */
+function Footer(){
+  return (
+    <footer className="border-t border-slate-200 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-2.5">
+          <LogoMark size={24}/>
+          <span className="font-display font-semibold text-slate-600">RxBridge LK</span>
+          <span>· Smart Medical Shortage Engine &amp; Direct Pharmacy Network</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono">
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 anim-live"/>2,431 nodes reporting</span>
+          <span>Demo build · data simulated</span>
+          <a href="tel:1990" className="text-red-500 font-semibold hover:underline">Emergency 1990</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function App(){
+  const [view, setView] = useState('patient');
+  const [toasts, setToasts] = useState([]);
+  const [queue, setQueue] = useState(SEED_QUEUE);
+  const [leaving, setLeaving] = useState({});
+  const [branchStock, setBranchStock] = useState({});
+  const [modal, setModal] = useState(null);
+  const [auth, setAuth] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authPreset, setAuthPreset] = useState('patient');
+  const idRef = useRef(0);
+
+  const dismiss = useCallback(id => setToasts(t => t.filter(x => x.id !== id)), []);
+  const pushToast = useCallback((msg, type='success') => {
+    const id = ++idRef.current;
+    setToasts(t => [...t.slice(-3), {id, msg, type}]);
+    setTimeout(() => dismiss(id), 4200);
+  }, [dismiss]);
+
+  const scrollToId = id => setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 140);
+
+  const openAuth = role => { setAuthPreset(role || 'patient'); setAuthOpen(true); };
+
+  const handleAuth = a => {
+    setAuth(a);
+    setAuthOpen(false);
+    if (a.role === 'pharmacy'){
+      setView('pharmacist');
+      pushToast(a.verified
+        ? `Welcome back, ${a.phName}. Inventory controls unlocked.`
+        : `Application received — ${a.phName} is pending NMRA verification.`, a.verified ? 'success' : 'info');
+      scrollToId('top');
+    } else {
+      pushToast(`Welcome${a.name ? ', ' + a.name.split(' ')[0] : ''}! You're signed in — reservations will now prefill your details.`, 'success');
+    }
+  };
+
+  const signOut = () => {
+    setAuth(null);
+    pushToast('You have been signed out. Stay safe!', 'info');
+  };
+
+  const addReservation = r => {
+    setQueue(q => [{id:'r'+Date.now(), patient:r.name, phone:r.phone, med:r.med, qty:r.qty, time:r.time, status:'pending', requested:'just now', isNew:true}, ...q]);
+  };
+
+  const decide = (id, ok) => {
+    setQueue(q => q.map(r => r.id===id ? {...r, status: ok?'confirmed':'declined', isNew:false} : r));
+    setTimeout(() => {
+      setLeaving(l => ({...l, [id]:true}));
+      setTimeout(() => {
+        setQueue(q => q.filter(r => r.id !== id));
+        setLeaving(l => { const n = {...l}; delete n[id]; return n; });
+      }, 320);
+    }, 1700);
+  };
+
+  return (
+    <React.Fragment>
+      <span id="top"/>
+      <Header view={view} setView={setView} auth={auth} onOpenAuth={openAuth} onSignOut={signOut} scrollToId={scrollToId}/>
+      <main className="min-h-[70vh]">
+        {view==='patient'
+          ? <PatientView key="patient" pushToast={pushToast} branchStock={branchStock}
+              onReserve={(pharmacy, med) => setModal({pharmacy, med})}/>
+          : <PharmacistView key="pharmacist" pushToast={pushToast} queue={queue} leaving={leaving} decide={decide}
+              branchStock={branchStock} setBranchStock={setBranchStock} auth={auth}/>}
+      </main>
+      <Footer/>
+      <ToastHost toasts={toasts} dismiss={dismiss}/>
+      {authOpen && (
+        <AuthModal key={authPreset+'-'+String(authOpen)} presetRole={authPreset}
+          onClose={()=>setAuthOpen(false)} onAuth={handleAuth} pushToast={pushToast}/>
+      )}
+      {modal && (
+        <ReservationModal data={modal}
+          prefill={auth?.role==='patient' ? {name: auth.name, phone: auth.phone} : null}
+          onClose={()=>setModal(null)}
+          onConfirm={r => {
+            addReservation(r);
+            pushToast(`Reservation ${r.ref} confirmed — show the SMS code at ${r.pharmacy.name}.`, 'success');
+          }}/>
+      )}
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
